@@ -29,3 +29,9 @@ target/
 # Gradle
 .gradle/
 build/
+
+# Gradle wrapper jar must stay tracked despite *.jar above
+!**/gradle-wrapper.jar
+
+# IDE output (VS Code)
+bin/

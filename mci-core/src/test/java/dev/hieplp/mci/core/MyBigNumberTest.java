@@ -71,6 +71,18 @@ class MyBigNumberTest {
     }
 
     @Test
+    void sumWithStepsReturnsOrderedStepData() {
+        MyBigNumber.SumResult r = bigNumber.sumWithSteps("1234", "897");
+        assertEquals("2131", r.sum());
+        assertEquals(List.of(
+                new MyBigNumber.Step(1, 4, 7, 0, 11, 1, 1, "1"),
+                new MyBigNumber.Step(2, 3, 9, 1, 13, 3, 1, "31"),
+                new MyBigNumber.Step(3, 2, 8, 1, 11, 1, 1, "131"),
+                new MyBigNumber.Step(4, 1, 0, 1, 2, 2, 0, "2131")),
+                r.steps());
+    }
+
+    @Test
     void randomAgainstBigInteger() {
         Random rnd = new Random(42);
         for (int k = 0; k < 200; k++) {
