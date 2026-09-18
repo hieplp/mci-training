@@ -1,6 +1,7 @@
 package dev.hieplp.mci.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigInteger;
 import java.util.Random;
@@ -38,6 +39,23 @@ class MyBigNumberTest {
         String a = "9".repeat(1000);
         String b = "9".repeat(999) + "8";
         assertEquals(new BigInteger(a).add(new BigInteger(b)).toString(), bigNumber.sum(a, b));
+    }
+
+    @Test
+    void rejectsInvalidInput() {
+        assertThrows(IllegalArgumentException.class, () -> bigNumber.sum(null, "1"));
+        assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("1", null));
+        assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("", "1"));
+        assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("1", ""));
+        assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("12a3", "1"));
+        assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("-5", "1"));
+        assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("1 2", "1"));
+        assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("١٢٣", "1")); // Arabic-Indic digits
+    }
+
+    @Test
+    void acceptsLeadingZeros() {
+        assertEquals("124", bigNumber.sum("000123", "0001"));
     }
 
     @Test
