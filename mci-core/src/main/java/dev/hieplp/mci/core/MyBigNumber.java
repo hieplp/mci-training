@@ -1,7 +1,6 @@
 package dev.hieplp.mci.core;
 
-import java.lang.System.Logger;
-import java.lang.System.Logger.Level;
+
 
 /**
  * Adds two large non-negative integers represented as decimal strings,
@@ -11,8 +10,8 @@ import java.lang.System.Logger.Level;
  * validation is performed.</p>
  */
 public class MyBigNumber {
+    private static final AppLogger LOG = AppLogger.of(MyBigNumber.class);
 
-    private static final Logger LOG = System.getLogger(MyBigNumber.class.getName());
 
     /**
      * Adds {@code stn1} and {@code stn2} digit by digit, right to left,
@@ -41,7 +40,7 @@ public class MyBigNumber {
             result.append(digit);
             step++;
 
-            LOG.log(Level.INFO,
+            LOG.info(
                     "Step {0}: {1} + {2} + carry {3} = {4}. Write {5}, carry {6}. Result so far: \"{7}\"",
                     step, d1, d2, prevCarry, total, digit, carry, result);
 
@@ -50,7 +49,7 @@ public class MyBigNumber {
         }
 
         String sum = result.reverse().toString();
-        LOG.log(Level.INFO, "Final: {0} + {1} = {2}", stn1, stn2, sum);
+        LOG.info("Final: {0} + {1} = {2}", stn1, stn2, sum);
         return sum;
     }
 }
