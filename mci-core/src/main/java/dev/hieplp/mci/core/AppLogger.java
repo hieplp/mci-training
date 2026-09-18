@@ -21,8 +21,6 @@ import java.lang.System.Logger.Level;
  * }</pre>
  *
  * @author HiepLP (hiepphuocly@gmail.com)
- * @version 0.0.1
- * @since 0.0.1
  */
 public final class AppLogger {
 

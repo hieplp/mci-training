@@ -55,9 +55,14 @@ class MyBigNumberTest {
         assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("", "1"));
         assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("1", ""));
         assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("12a3", "1"));
+        assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("abc", "1"));
+        assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("1.5", "1"));
         assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("-5", "1"));
         assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("1 2", "1"));
         assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("١٢٣", "1")); // Arabic-Indic digits
+        assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("1", "2x"));
+        assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("1", "abc"));
+        assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("abc", "xyz"));
     }
 
     @Test
@@ -120,6 +125,7 @@ class MyBigNumberTest {
         // Formatted only now, after sum() returned: a handler that stores records
         // instead of printing them immediately must still see each step's own state.
         assertEquals(List.of(
+                        "Input: stn1=\"1234\", stn2=\"897\"",
                         "Step 1: 4 + 7 + carry 0 = 11. Write 1, carry 1. Result so far: \"1\"",
                         "Step 2: 3 + 9 + carry 1 = 13. Write 3, carry 1. Result so far: \"31\"",
                         "Step 3: 2 + 8 + carry 1 = 11. Write 1, carry 1. Result so far: \"131\"",
