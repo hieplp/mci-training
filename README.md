@@ -44,3 +44,24 @@ formats them only after `sum()` returns).
 MyBigNumber bn = new MyBigNumber();
 String result = bn.sum("1234", "897"); // "2131"
 ```
+
+## Task 2 — `mci-web`
+Spring Boot + Thymeleaf web app (hand-rolled CSS, no framework) that reuses `mci-core` (via a
+Gradle composite build — `includeBuild '../mci-core'` in `settings.gradle`)
+and shows the column-addition progress on the page.
+
+### Run
+
+```bash
+cd mci-web
+./run.sh          # serves on http://localhost:8081 (all interfaces)
+```
+
+Or `./gradlew bootRun` for the default port 8080.
+
+### Run tests
+
+```bash
+cd mci-web
+./gradlew test
+```
