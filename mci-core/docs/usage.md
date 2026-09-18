@@ -17,6 +17,18 @@ bn.sum("000123", "00456");   // "579"  — leading zeros stripped
 bn.sum("0", "0");            // "0"
 ```
 
+Need the step-by-step history (e.g. to show calculation progress in a UI)?
+`sumWithSteps` returns the sum plus each column-addition step as
+structured data — formatting is the caller's choice:
+
+```java
+MyBigNumber.SumResult r = bn.sumWithSteps("1234", "897");
+r.sum();     // "2131"
+r.steps();   // [Step 1: 4 + 7 + carry 0 = 11. Write 1, carry 1. Result so far: "1", ...]
+             // each Step exposes its fields (index, firstDigit, carryIn, ...)
+             // and toString() renders the same sentence as the log line
+```
+
 **Errors** — `IllegalArgumentException` when an operand is `null`, empty,
 or contains a non-digit character:
 
