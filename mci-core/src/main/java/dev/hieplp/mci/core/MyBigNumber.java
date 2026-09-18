@@ -9,12 +9,16 @@ package dev.hieplp.mci.core;
  * <p>Both operands are scanned right to left; each pair of digits is
  * summed together with the running carry, and every step is recorded
  * through {@link AppLogger} so callers can replay the calculation
- * history (e.g. for a UI progress view).</p>
+ * history (e.g. for a UI progress view). Each record carries an
+ * immutable snapshot of the partial result, so a handler that stores
+ * records and formats them later still replays correctly.</p>
  *
  * <p>Operands must be non-empty strings of ASCII digits ({@code 0-9});
  * leading zeros are accepted and normalized away in the result.
  * Arbitrary length is supported — the algorithm is O(n) in the length
- * of the longer operand and never converts to a numeric type.</p>
+ * of the longer operand and never converts to a numeric type. Note the
+ * per-step records make emitted log volume O(n²); raise the backend
+ * level above INFO to suppress them.</p>
  *
  * <p>Usage:</p>
  * <pre>{@code
@@ -45,6 +49,8 @@ public class MyBigNumber {
     public String sum(String stn1, String stn2) {
         NumberStrings.requireDigits(stn1, "stn1");
         NumberStrings.requireDigits(stn2, "stn2");
+        LOG.debug("sum() called: stn1 length={0}, stn2 length={1}", stn1.length(), stn2.length());
+        LOG.debug("Operands validated: both are non-empty ASCII digit strings");
 
         StringBuilder result = new StringBuilder();
         int carry = 0;
@@ -64,17 +70,22 @@ public class MyBigNumber {
             result.append(digit);
             step++;
 
+            // Immutable snapshot: LogRecord formatting is deferred, so a live
+            // StringBuilder (reversed in place below) would log the final sum.
+            String soFar = new StringBuilder(result).reverse().toString();
             LOG.info(
                     "Step {0}: {1} + {2} + carry {3} = {4}. Write {5}, carry {6}. Result so far: \"{7}\"",
-                    step, d1, d2, prevCarry, total, digit, carry, result
+                    step, d1, d2, prevCarry, total, digit, carry, soFar
             );
 
             i--;
             j--;
         }
+        LOG.debug("Column loop finished: {0} steps executed, final carry={1}", step, carry);
 
         String sum = NumberStrings.stripLeadingZeros(result.reverse().toString());
         LOG.info("Final: {0} + {1} = {2}", stn1, stn2, sum);
+        LOG.debug("sum() returning \"{0}\" ({1} digits)", sum, sum.length());
         return sum;
     }
 

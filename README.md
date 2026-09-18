@@ -34,8 +34,9 @@ cd mci-core
 
 Unit tests live in `mci-core/src/test/java/dev/hieplp/mci/core/` and cover the
 spec example (`1234 + 897 = 2131`), carry propagation, different-length
-operands, zeros, 1000-digit numbers, and randomized cross-checks against
-`BigInteger`.
+operands, zeros, 1000-digit numbers, randomized cross-checks against
+`BigInteger`, and the step-by-step log records (replayed from a handler that
+formats them only after `sum()` returns).
 
 ### Usage
 

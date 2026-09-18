@@ -61,4 +61,5 @@ public final class AppLogger {
     public void debug(String message, Object... params) {
         delegate.log(Level.DEBUG, message, params);
     }
+
 }

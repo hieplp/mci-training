@@ -4,7 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigInteger;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import org.junit.jupiter.api.Test;
 
@@ -75,5 +82,51 @@ class MyBigNumberTest {
             sb.append((char) ('0' + rnd.nextInt(10)));
         }
         return sb.toString();
+    }
+
+    @Test
+    void logsEachStepWithThePartialResult() {
+        List<LogRecord> records = new ArrayList<>();
+        Logger jul = Logger.getLogger(MyBigNumber.class.getName());
+        Handler collector = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                if (record.getLevel().intValue() >= Level.INFO.intValue()) {
+                    records.add(record);
+                }
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        Level level = jul.getLevel();
+        boolean parentHandlers = jul.getUseParentHandlers();
+        jul.setLevel(Level.ALL);
+        jul.setUseParentHandlers(false);
+        jul.addHandler(collector);
+        try {
+            assertEquals("2131", bigNumber.sum("1234", "897"));
+        } finally {
+            jul.removeHandler(collector);
+            jul.setLevel(level);
+            jul.setUseParentHandlers(parentHandlers);
+        }
+
+        // Formatted only now, after sum() returned: a handler that stores records
+        // instead of printing them immediately must still see each step's own state.
+        assertEquals(List.of(
+                        "Step 1: 4 + 7 + carry 0 = 11. Write 1, carry 1. Result so far: \"1\"",
+                        "Step 2: 3 + 9 + carry 1 = 13. Write 3, carry 1. Result so far: \"31\"",
+                        "Step 3: 2 + 8 + carry 1 = 11. Write 1, carry 1. Result so far: \"131\"",
+                        "Step 4: 1 + 0 + carry 1 = 2. Write 2, carry 0. Result so far: \"2131\"",
+                        "Final: 1234 + 897 = 2131"),
+                records.stream()
+                        .map(r -> MessageFormat.format(r.getMessage(), r.getParameters()))
+                        .toList());
     }
 }

@@ -45,7 +45,6 @@ final class NumberStrings {
      * @param s digit string (assumed already validated)
      * @return {@code s} without leading zeros, never empty
      */
-
     static String stripLeadingZeros(String s) {
         int k = 0;
         while (k < s.length() - 1 && s.charAt(k) == '0') {
