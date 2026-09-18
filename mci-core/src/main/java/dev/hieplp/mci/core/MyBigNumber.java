@@ -5,6 +5,27 @@ package dev.hieplp.mci.core;
 /**
  * Adds two large non-negative integers represented as decimal strings,
  * using the elementary-school column-addition algorithm.
+ *
+ * <p>Both operands are scanned right to left; each pair of digits is
+ * summed together with the running carry, and every step is recorded
+ * through {@link AppLogger} so callers can replay the calculation
+ * history (e.g. for a UI progress view).</p>
+ *
+ * <p>Operands must be non-empty strings of ASCII digits ({@code 0-9});
+ * leading zeros are accepted and normalized away in the result.
+ * Arbitrary length is supported — the algorithm is O(n) in the length
+ * of the longer operand and never converts to a numeric type.</p>
+ *
+ * <p>Usage:</p>
+ * <pre>{@code
+ * MyBigNumber bn = new MyBigNumber();
+ * String result = bn.sum("1234", "897"); // "2131"
+ * }</pre>
+ *
+ * @author HiepLP (hiepphuocly@gmail.com)
+ * @version 0.0.1
+ * @since 0.0.1
+ * @see NumberStrings
  */
 public class MyBigNumber {
 
