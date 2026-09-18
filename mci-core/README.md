@@ -58,3 +58,8 @@ Invalid input (null, empty, non-digit) throws `IllegalArgumentException`.
 ./gradlew build      # compile + run tests
 ./gradlew test       # tests only (JUnit 5)
 ```
+
+Tests live in `src/test/java/dev/hieplp/mci/core/` and cover the spec
+example (`1234 + 897 = 2131`), carry propagation, different-length
+operands, zeros, 1000-digit numbers, randomized cross-checks against
+`BigInteger`, and the step-by-step log records.
