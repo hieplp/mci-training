@@ -23,10 +23,6 @@ public class MyBigNumber {
 
     private static final AppLogger LOG = AppLogger.of(MyBigNumber.class);
 
-    /** One {@link MessageFormat} pattern, shared by {@link Step#toString()} and the log line. */
-    private static final String STEP_MESSAGE =
-            "Step {0}: {1} + {2} + carry {3} = {4}. Write {5}, carry {6}. Result so far: \"{7}\"";
-
     /**
      * Logs the input, every column and the final result at INFO, and skips
      * building the per-column log message when INFO is disabled — O(n) time
@@ -38,47 +34,11 @@ public class MyBigNumber {
      * @throws IllegalArgumentException on null, empty, or non-digit input
      */
     public String sum(String stn1, String stn2) {
-        LOG.info("Input: stn1=\"{0}\", stn2=\"{1}\"", stn1, stn2);
-
-        NumberStrings.requireDigits(stn1, "stn1");
-        NumberStrings.requireDigits(stn2, "stn2");
-        stn1 = NumberStrings.stripLeadingZeros(stn1);
-        stn2 = NumberStrings.stripLeadingZeros(stn2);
-
-        StringBuilder result = new StringBuilder(Math.max(stn1.length(), stn2.length()) + 1);
-        int carry = 0;
-        int stepIndex = 0;
-
-        int i = stn1.length() - 1;
-        int j = stn2.length() - 1;
-
-        while (i >= 0 || j >= 0 || carry > 0) {
-            int firstDigit = i >= 0 ? stn1.charAt(i--) - '0' : 0;
-            int secondDigit = j >= 0 ? stn2.charAt(j--) - '0' : 0;
-
-            int carryIn = carry;
-            int columnTotal = firstDigit + secondDigit + carryIn;
-            int resultDigit = columnTotal % 10;
-            carry = columnTotal / 10;
-            result.append((char) ('0' + resultDigit));
-
-            logStep(++stepIndex, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carry, result);
-        }
-
+        Operands in = checkedOperands(stn1, stn2);
+        StringBuilder result = addColumns(in.stn1(), in.stn2(), MyBigNumber::logStep);
         String sum = result.reverse().toString();
-        LOG.info("Final: {0} + {1} = {2}", stn1, stn2, sum);
+        LOG.info("Final: {0} + {1} = {2}", in.stn1(), in.stn2(), sum);
         return sum;
-    }
-
-    /**
-     * Logs one column-addition step at INFO. The supplier defers both the
-     * O(n) partial-result snapshot and the formatting — nothing is built
-     * when INFO is disabled.
-     */
-    private static void logStep(int step, int firstDigit, int secondDigit, int carryIn,
-                                int columnTotal, int resultDigit, int carryOut, StringBuilder result) {
-        LOG.info(() -> MessageFormat.format(STEP_MESSAGE, step, firstDigit, secondDigit, carryIn,
-                columnTotal, resultDigit, carryOut, new StringBuilder(result).reverse().toString()));
     }
 
     /**
@@ -92,47 +52,74 @@ public class MyBigNumber {
      * @throws IllegalArgumentException on null, empty, or non-digit input
      */
     public SumResult sumWithSteps(String stn1, String stn2) {
-        LOG.info("Input: stn1=\"{0}\", stn2=\"{1}\"", stn1, stn2);
-
-        NumberStrings.requireDigits(stn1, "stn1");
-        NumberStrings.requireDigits(stn2, "stn2");
-        stn1 = NumberStrings.stripLeadingZeros(stn1);
-        stn2 = NumberStrings.stripLeadingZeros(stn2);
-
-        StringBuilder result = new StringBuilder(Math.max(stn1.length(), stn2.length()) + 1);
+        Operands in = checkedOperands(stn1, stn2);
+        List<Step> steps = new ArrayList<>();
         // Reused scratch, so each snapshot costs only its String, not a whole
         // StringBuilder (object + backing array) per column.
-        StringBuilder snapshot = new StringBuilder(result.capacity());
-        int carry = 0;
-        int stepIndex = 0;
-        List<Step> steps = new ArrayList<>();
+        StringBuilder snapshot = new StringBuilder(Math.max(in.stn1().length(), in.stn2().length()) + 1);
+        StringBuilder result = addColumns(in.stn1(), in.stn2(),
+                (step, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carryOut, res) -> {
+                    snapshot.setLength(0);
+                    Step s = new Step(step, firstDigit, secondDigit, carryIn, columnTotal,
+                            resultDigit, carryOut, snapshot.append(res).reverse().toString());
+                    LOG.info("{0}", s);
+                    steps.add(s);
+                });
+        String sum = result.reverse().toString();
+        LOG.info("Final: {0} + {1} = {2}", in.stn1(), in.stn2(), sum);
+        return new SumResult(sum, Collections.unmodifiableList(steps));
+    }
 
+    /** Logs the input line and returns both operands validated and stripped of leading zeros. */
+    private static Operands checkedOperands(String stn1, String stn2) {
+        LOG.info("Input: stn1=\"{0}\", stn2=\"{1}\"", stn1, stn2);
+        NumberStrings.requireDigits(stn1, "stn1");
+        NumberStrings.requireDigits(stn2, "stn2");
+        return new Operands(NumberStrings.stripLeadingZeros(stn1), NumberStrings.stripLeadingZeros(stn2));
+    }
+
+    /**
+     * Runs column addition over both operands, invoking {@code visitor} once
+     * per column (least-significant first) after appending that column's digit.
+     */
+    private static StringBuilder addColumns(String stn1, String stn2, ColumnVisitor visitor) {
+        StringBuilder result = new StringBuilder(Math.max(stn1.length(), stn2.length()) + 1);
+        int carry = 0;
+        int step = 0;
         int i = stn1.length() - 1;
         int j = stn2.length() - 1;
-
         while (i >= 0 || j >= 0 || carry > 0) {
             int firstDigit = i >= 0 ? stn1.charAt(i--) - '0' : 0;
             int secondDigit = j >= 0 ? stn2.charAt(j--) - '0' : 0;
-
             int carryIn = carry;
             int columnTotal = firstDigit + secondDigit + carryIn;
             int resultDigit = columnTotal % 10;
             carry = columnTotal / 10;
             result.append((char) ('0' + resultDigit));
-
-            snapshot.setLength(0);
-            snapshot.append(result).reverse();
-            String resultSoFar = snapshot.toString();
-
-            Step step = new Step(++stepIndex, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carry, resultSoFar);
-            LOG.info("{0}", step);
-            steps.add(step);
+            visitor.visit(++step, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carry, result);
         }
+        return result;
+    }
 
-        String sum = result.reverse().toString();
-        LOG.info("Final: {0} + {1} = {2}", stn1, stn2, sum);
+    /**
+     * Logs one column-addition step at INFO. The supplier defers both the
+     * O(n) partial-result snapshot and the Step allocation — nothing is
+     * built when INFO is disabled.
+     */
+    private static void logStep(int step, int firstDigit, int secondDigit, int carryIn,
+                                int columnTotal, int resultDigit, int carryOut, StringBuilder result) {
+        LOG.info(() -> new Step(step, firstDigit, secondDigit, carryIn, columnTotal, resultDigit,
+                carryOut, new StringBuilder(result).reverse().toString()).toString());
+    }
 
-        return new SumResult(sum, Collections.unmodifiableList(steps));
+    /** Per-column callback used by {@link #addColumns}. */
+    private interface ColumnVisitor {
+        void visit(int step, int firstDigit, int secondDigit, int carryIn,
+                   int columnTotal, int resultDigit, int carryOut, StringBuilder result);
+    }
+
+    /** Validated, normalized operand pair. */
+    private record Operands(String stn1, String stn2) {
     }
 
     /**
@@ -168,6 +155,10 @@ public class MyBigNumber {
             int carryOut,
             String resultSoFar
     ) {
+
+        /** One {@link MessageFormat} pattern, owned by the sentence it renders. */
+        private static final String STEP_MESSAGE =
+                "Step {0}: {1} + {2} + carry {3} = {4}. Write {5}, carry {6}. Result so far: \"{7}\"";
 
         /** The step rendered as a sentence — same text as the INFO log line. */
         @Override

@@ -94,9 +94,9 @@ INFO on versus **0.006 ms / 4.1 kB** with INFO off: ~1,000× the time and
 
 | Fix | Effect |
 |---|---|
-| `sum()` has its own loop instead of calling `sumWithSteps()` and discarding the result | No `Step` records, no `ArrayList` growth, no `Step.toString()` opportunity at all |
+| `sum()` and `sumWithSteps()` share one column-addition core (`addColumns`), with `sum()` passing the non-capturing `logStep` visitor | One loop and one validate/strip prologue instead of two near-identical copies; `sum()` still builds no `Step` records, no `ArrayList` growth, no `Step.toString()` |
 | Per-column snapshot + log line moved into `AppLogger.info(Supplier)` — `System.Logger.log(Level, Supplier)` runs the supplier only when INFO is enabled | Same laziness as the explicit guard it replaced, without the guard: removes the O(n) `StringBuilder(result).reverse().toString()` per column from the default path → O(n), not O(n²) |
-| Step sentence formatted by the supplier from the shared `STEP_MESSAGE` pattern rather than left to the backend | Keeps the exact `Step.toString()` text and formats it only when the line will actually be logged |
+| Step sentence formatted inside the supplier `AppLogger.info(Supplier)` from `Step.toString()` rather than left to the backend | Keeps the exact `Step.toString()` text and formats it only when the line will actually be logged; the `Step` itself is built lazily inside the supplier, so INFO off allocates nothing per column |
 | `result.append((char) ('0' + digit))` instead of `result.append(int)` | Integer-append boxing path replaced by a direct char append |
 | Reused a scratch `StringBuilder` for snapshots in `sumWithSteps()` instead of `new StringBuilder(result)` per column | Removes a `StringBuilder` (object + backing array) per column; ~2× less allocated bytes overall |
 | `Collections.unmodifiableList(steps)` instead of `List.copyOf(steps)` | Removes a full copy of the step list; the list is locally created and never shared |
