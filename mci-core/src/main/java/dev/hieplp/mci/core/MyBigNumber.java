@@ -62,16 +62,23 @@ public class MyBigNumber {
             carry = columnTotal / 10;
             result.append((char) ('0' + resultDigit));
 
-            // Guarded by the supplier: the snapshot below runs only when INFO is enabled.
-            int step = ++stepIndex;
-            int carryOut = carry;
-            LOG.info(() -> MessageFormat.format(STEP_MESSAGE, step, firstDigit, secondDigit, carryIn,
-                    columnTotal, resultDigit, carryOut, new StringBuilder(result).reverse().toString()));
+            logStep(++stepIndex, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carry, result);
         }
 
         String sum = result.reverse().toString();
         LOG.info("Final: {0} + {1} = {2}", stn1, stn2, sum);
         return sum;
+    }
+
+    /**
+     * Logs one column-addition step at INFO. The supplier defers both the
+     * O(n) partial-result snapshot and the formatting — nothing is built
+     * when INFO is disabled.
+     */
+    private static void logStep(int step, int firstDigit, int secondDigit, int carryIn,
+                                int columnTotal, int resultDigit, int carryOut, StringBuilder result) {
+        LOG.info(() -> MessageFormat.format(STEP_MESSAGE, step, firstDigit, secondDigit, carryIn,
+                columnTotal, resultDigit, carryOut, new StringBuilder(result).reverse().toString()));
     }
 
     /**
