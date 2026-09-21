@@ -76,6 +76,7 @@ public class MyService {
 
     public void run(int count) {
         LOG.info("Processed {0} items", count);   // MessageFormat-style {0} placeholders
+        LOG.info(() -> stepSentence());           // supplier runs only if INFO is enabled
         LOG.warn("Rejected input: {0}", input);
         LOG.error("Failed: {0}", reason);
         LOG.debug("detail={0}", detail);          // off at default JUL INFO level
@@ -84,3 +85,7 @@ public class MyService {
 ```
 
 Instances are cheap wrappers — safe to hold in a `static final` field.
+
+`info(Supplier<String>)` skips building the message entirely when INFO is
+disabled, so an expensive or snapshot-taking message needs no
+`isLoggable` guard at the call site.

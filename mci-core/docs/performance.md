@@ -66,9 +66,10 @@ allocated bytes (~1.1× faster), plus a smaller live heap while it runs.
 
 ## INFO enabled (n = 2 000, handler formats each record)
 
-This is the logging path itself: the JUL handler formats every record with
-`MessageFormat` (as `SimpleFormatter` does) into a discard sink. No console
-I/O is measured.
+This is the logging path itself: `sum()` builds each step sentence inside the
+supplier it hands to `AppLogger.info(Supplier)`, and the JUL handler formats
+every record with `MessageFormat` (as `SimpleFormatter` does) into a discard
+sink. No console I/O is measured.
 
 | variant | median time (ms) | allocated bytes/call |
 |---|---:|---:|
@@ -84,7 +85,7 @@ sum()` and `old sumWithSteps()` in the table above are *the same code*, and
 still differ by 40% — GC inside the measured window is the noise source, so
 read the byte counts here, not the milliseconds.
 
-The point of the guard is not a faster log line, it is that the log line is
+The point of the lazy log is not a faster log line, it is that the log line is
 opt-in. At n = 2 000 the same new `sum()` costs **6.267 ms / 32.4 MB** with
 INFO on versus **0.006 ms / 4.1 kB** with INFO off: ~1,000× the time and
 ~7,800× the allocation for commentary the caller did not ask for.
@@ -94,15 +95,15 @@ INFO on versus **0.006 ms / 4.1 kB** with INFO off: ~1,000× the time and
 | Fix | Effect |
 |---|---|
 | `sum()` has its own loop instead of calling `sumWithSteps()` and discarding the result | No `Step` records, no `ArrayList` growth, no `Step.toString()` opportunity at all |
-| Per-column snapshot + log line moved behind `LOG.isLoggable(Level.INFO)` (new `AppLogger.isLoggable`) | Removes the O(n) `StringBuilder(result).reverse().toString()` per column from the default path → O(n), not O(n²) |
-| Step message logged as pattern + parameters (lazily formatted by the backend) rather than a pre-rendered sentence | Keeps log formatting out of the caller's hot path and keeps the exact `Step.toString()` text through the shared `STEP_MESSAGE` pattern |
+| Per-column snapshot + log line moved into `AppLogger.info(Supplier)` — `System.Logger.log(Level, Supplier)` runs the supplier only when INFO is enabled | Same laziness as the explicit guard it replaced, without the guard: removes the O(n) `StringBuilder(result).reverse().toString()` per column from the default path → O(n), not O(n²) |
+| Step sentence formatted by the supplier from the shared `STEP_MESSAGE` pattern rather than left to the backend | Keeps the exact `Step.toString()` text and formats it only when the line will actually be logged |
 | `result.append((char) ('0' + digit))` instead of `result.append(int)` | Integer-append boxing path replaced by a direct char append |
 | Reused a scratch `StringBuilder` for snapshots in `sumWithSteps()` instead of `new StringBuilder(result)` per column | Removes a `StringBuilder` (object + backing array) per column; ~2× less allocated bytes overall |
 | `Collections.unmodifiableList(steps)` instead of `List.copyOf(steps)` | Removes a full copy of the step list; the list is locally created and never shared |
 
 No public API changed: `sum`, `sumWithSteps`, `SumResult`, `Step` and the
 `MessageFormat` step sentence are untouched. `AppLogger` gained one method,
-`isLoggable(Level)`.
+`info(Supplier<String>)`, which logs a lazily built message.
 
 ## Correctness
 

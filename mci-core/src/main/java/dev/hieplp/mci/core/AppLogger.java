@@ -2,6 +2,7 @@ package dev.hieplp.mci.core;
 
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
+import java.util.function.Supplier;
 
 /**
  * Thin logging facade over {@link System.Logger} (JUL backend by default).
@@ -40,20 +41,20 @@ public final class AppLogger {
         return new AppLogger(System.getLogger(type.getName()));
     }
 
-    /**
-     * Reports whether a message at {@code level} would be emitted by the
-     * backend, so callers can skip building an expensive message.
-     *
-     * @param level level to test
-     * @return {@code true} if a message at that level would be logged
-     */
-    public boolean isLoggable(Level level) {
-        return delegate.isLoggable(level);
-    }
-
     /** Logs an informational message (normal progress). */
     public void info(String message, Object... params) {
         delegate.log(Level.INFO, message, params);
+    }
+
+    /**
+     * Logs an informational message built lazily — {@code supplier} runs only
+     * if INFO is enabled, so callers can hand over an expensive message
+     * without an explicit {@code isLoggable} guard.
+     *
+     * @param supplier builds the message; not invoked when INFO is off
+     */
+    public void info(Supplier<String> supplier) {
+        delegate.log(Level.INFO, supplier);
     }
 
     /** Logs a warning (recoverable problem, e.g. rejected input). */

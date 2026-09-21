@@ -1,6 +1,5 @@
 package dev.hieplp.mci.core;
 
-import java.lang.System.Logger.Level;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -63,13 +62,11 @@ public class MyBigNumber {
             carry = columnTotal / 10;
             result.append((char) ('0' + resultDigit));
 
-            // Snapshots make the loop O(n²); pay for them only when they are used,
-            // and let the backend format the sentence (lazily) from the parameters.
-            if (LOG.isLoggable(Level.INFO)) {
-                String resultSoFar = new StringBuilder(result).reverse().toString();
-                LOG.info(STEP_MESSAGE, ++stepIndex, firstDigit, secondDigit, carryIn,
-                        columnTotal, resultDigit, carry, resultSoFar);
-            }
+            // Guarded by the supplier: the snapshot below runs only when INFO is enabled.
+            int step = ++stepIndex;
+            int carryOut = carry;
+            LOG.info(() -> MessageFormat.format(STEP_MESSAGE, step, firstDigit, secondDigit, carryIn,
+                    columnTotal, resultDigit, carryOut, new StringBuilder(result).reverse().toString()));
         }
 
         String sum = result.reverse().toString();
