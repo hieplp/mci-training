@@ -37,9 +37,13 @@ bn.sum("12a", "1");   // IllegalArgumentException: stn1 contains non-digit chara
 bn.sum(null, "1");    // IllegalArgumentException: stn1 must not be null or empty
 ```
 
-**Cost note:** each addition step logs an immutable snapshot of the partial
-result, so both time and log volume are O(n²) in input length. Raise the
-log level above INFO for large operands (see [logging.md](logging.md)).
+**Cost note:** `sum()` is O(n) in time and memory, and builds nothing per
+column, while the per-step INFO logging is off. Turn INFO on and each column
+adds an immutable snapshot of the partial result to the log line, making
+time and log volume O(n²) — so raise the level above INFO for large operands
+([logging.md](logging.md)). `sumWithSteps()` is O(n²) by construction: it
+returns one snapshot string per column whatever the log level. Measured
+before/after numbers: [performance.md](performance.md).
 
 ## NumberStrings
 

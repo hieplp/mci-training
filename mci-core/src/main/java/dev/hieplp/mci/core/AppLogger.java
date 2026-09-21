@@ -40,6 +40,17 @@ public final class AppLogger {
         return new AppLogger(System.getLogger(type.getName()));
     }
 
+    /**
+     * Reports whether a message at {@code level} would be emitted by the
+     * backend, so callers can skip building an expensive message.
+     *
+     * @param level level to test
+     * @return {@code true} if a message at that level would be logged
+     */
+    public boolean isLoggable(Level level) {
+        return delegate.isLoggable(level);
+    }
+
     /** Logs an informational message (normal progress). */
     public void info(String message, Object... params) {
         delegate.log(Level.INFO, message, params);

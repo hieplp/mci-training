@@ -51,6 +51,7 @@ Invalid input (null, empty, non-digit) throws `IllegalArgumentException`.
 
 - [docs/usage.md](docs/usage.md) — per-class usage and examples
 - [docs/logging.md](docs/logging.md) — how logging works and how to configure/redirect it
+- [docs/performance.md](docs/performance.md) — before/after benchmark of the `sum()` hot path
 
 ## Build & test
 

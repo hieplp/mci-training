@@ -1,17 +1,20 @@
 package dev.hieplp.mci.core;
 
+import java.lang.System.Logger.Level;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
  * Adds two non-negative integers given as decimal strings via
- * column addition, logging each step at INFO with an immutable
- * partial-result snapshot.
+ * column addition, logging each step at INFO.
  *
  * <p>
- * Per-step snapshots make both time and log volume O(n²);
- * raise the level above INFO to skip the logging.
+ * {@link #sum(String, String)} is O(n) in time and memory while the
+ * per-step INFO logging is off; the snapshot it logs per column (and
+ * {@link #sumWithSteps(String, String)}, which returns those snapshots)
+ * makes it O(n²) again when logging is on.
  * </p>
  *
  * @author HiepLP (hiepphuocly@gmail.com)
@@ -21,14 +24,57 @@ public class MyBigNumber {
 
     private static final AppLogger LOG = AppLogger.of(MyBigNumber.class);
 
+    /** One {@link MessageFormat} pattern, shared by {@link Step#toString()} and the log line. */
+    private static final String STEP_MESSAGE =
+            "Step {0}: {1} + {2} + carry {3} = {4}. Write {5}, carry {6}. Result so far: \"{7}\"";
+
     /**
+     * Logs the input, every column and the final result at INFO, and skips
+     * building the per-column log message when INFO is disabled — O(n) time
+     * and memory without logging, O(n²) with it.
+     *
      * @param stn1 first operand, ASCII digits only
      * @param stn2 second operand, ASCII digits only
      * @return the sum, no leading zeros
      * @throws IllegalArgumentException on null, empty, or non-digit input
      */
     public String sum(String stn1, String stn2) {
-        return sumWithSteps(stn1, stn2).sum();
+        LOG.info("Input: stn1=\"{0}\", stn2=\"{1}\"", stn1, stn2);
+
+        NumberStrings.requireDigits(stn1, "stn1");
+        NumberStrings.requireDigits(stn2, "stn2");
+        stn1 = NumberStrings.stripLeadingZeros(stn1);
+        stn2 = NumberStrings.stripLeadingZeros(stn2);
+
+        StringBuilder result = new StringBuilder(Math.max(stn1.length(), stn2.length()) + 1);
+        int carry = 0;
+        int stepIndex = 0;
+
+        int i = stn1.length() - 1;
+        int j = stn2.length() - 1;
+
+        while (i >= 0 || j >= 0 || carry > 0) {
+            int firstDigit = i >= 0 ? stn1.charAt(i--) - '0' : 0;
+            int secondDigit = j >= 0 ? stn2.charAt(j--) - '0' : 0;
+
+            int carryIn = carry;
+            int columnTotal = firstDigit + secondDigit + carryIn;
+            int resultDigit = columnTotal % 10;
+            carry = columnTotal / 10;
+            result.append((char) ('0' + resultDigit));
+
+            // Snapshots make the loop O(n²); pay for them only when they are used,
+            // and let the backend format the sentence (lazily) from the parameters.
+            if (LOG.isLoggable(Level.INFO)) {
+                String resultSoFar = new StringBuilder(result).reverse().toString();
+                LOG.info(STEP_MESSAGE, ++stepIndex, firstDigit, secondDigit, carryIn,
+                        columnTotal, resultDigit, carry, resultSoFar);
+            }
+        }
+
+        String sum = result.reverse().toString();
+        LOG.info("Final: {0} + {1} = {2}", stn1, stn2, sum);
+        return sum;
     }
 
     /**
@@ -50,6 +96,9 @@ public class MyBigNumber {
         stn2 = NumberStrings.stripLeadingZeros(stn2);
 
         StringBuilder result = new StringBuilder(Math.max(stn1.length(), stn2.length()) + 1);
+        // Reused scratch, so each snapshot costs only its String, not a whole
+        // StringBuilder (object + backing array) per column.
+        StringBuilder snapshot = new StringBuilder(result.capacity());
         int carry = 0;
         int stepIndex = 0;
         List<Step> steps = new ArrayList<>();
@@ -65,9 +114,12 @@ public class MyBigNumber {
             int columnTotal = firstDigit + secondDigit + carryIn;
             int resultDigit = columnTotal % 10;
             carry = columnTotal / 10;
-            result.append(resultDigit);
+            result.append((char) ('0' + resultDigit));
 
-            String resultSoFar = new StringBuilder(result).reverse().toString();
+            snapshot.setLength(0);
+            snapshot.append(result).reverse();
+            String resultSoFar = snapshot.toString();
+
             Step step = new Step(++stepIndex, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carry, resultSoFar);
             LOG.info("{0}", step);
             steps.add(step);
@@ -76,7 +128,7 @@ public class MyBigNumber {
         String sum = result.reverse().toString();
         LOG.info("Final: {0} + {1} = {2}", stn1, stn2, sum);
 
-        return new SumResult(sum, List.copyOf(steps));
+        return new SumResult(sum, Collections.unmodifiableList(steps));
     }
 
     /**
@@ -116,10 +168,8 @@ public class MyBigNumber {
         /** The step rendered as a sentence — same text as the INFO log line. */
         @Override
         public String toString() {
-            return MessageFormat.format(
-                    "Step {0}: {1} + {2} + carry {3} = {4}. Write {5}, carry {6}. Result so far: \"{7}\"",
-                    index, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carryOut, resultSoFar
-            );
+            return MessageFormat.format(STEP_MESSAGE,
+                    index, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carryOut, resultSoFar);
         }
 
     }

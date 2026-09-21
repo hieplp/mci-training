@@ -18,8 +18,9 @@ Logger names are the fully-qualified class names, e.g.
 
 ## Quiet the per-step output
 
-`sum()` logs an immutable partial-result snapshot per digit column, so log
-volume is O(n²) in operand length. For large inputs, raise the level:
+Each step logs an immutable partial-result snapshot, so log volume is O(n²)
+in operand length, and `sum()` only pays for it while INFO is enabled: with
+INFO off it stays O(n) in time and memory. For large inputs, raise the level:
 
 ```properties
 # logging.properties
