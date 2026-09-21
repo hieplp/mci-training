@@ -17,7 +17,7 @@ records the before/after measurement.
 Operands are random fixed-length decimal strings (no leading zero); both
 variants receive the identical strings.
 
-## INFO disabled (JUL logger `dev.hieplp.mci.core.MyBigNumber` at WARNING)
+## INFO disabled (JUL loggers `dev.hieplp.mci.core.MyBigNumber` and `dev.hieplp.mci.core.LegacyMyBigNumber` at WARNING)
 
 The realistic hot path: callers that want the sum, not the commentary.
 
@@ -107,10 +107,10 @@ No public API changed: `sum`, `sumWithSteps`, `SumResult`, `Step` and the
 
 ## Correctness
 
-The benchmark embeds the pre-refactor algorithm verbatim
-(`Bench.Old`, a copy of the original code) and asserts the new result equals
-the old one for 6 sizes × 4 operand shapes (equal length, all nines, single
-digit, 1:3 length ratio) plus 50 random operand pairs:
+The benchmark compares against the pre-refactor algorithm preserved verbatim
+in `LegacyMyBigNumber` (a top-level class in the test sources) and asserts the
+new result equals the old one for 6 sizes × 4 operand shapes (equal length,
+all nines, single digit, 1:3 length ratio) plus 50 random operand pairs:
 
 ```
 sanity: new sum() == old sum() for 6 sizes x 4 shapes + 50 random pairs

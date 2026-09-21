@@ -24,7 +24,8 @@ import java.util.logging.Logger;
  * <p>Reports wall-clock time (median of {@value #RUNS} runs after
  * {@value #WARMUPS} warmups) and heap bytes allocated per call
  * ({@code com.sun.management.ThreadMXBean#getThreadAllocatedBytes}), for the
- * pre-refactor algorithm ({@link Old}, a verbatim copy) and the current one.</p>
+ * pre-refactor algorithm ({@link LegacyMyBigNumber}, the preserved baseline
+ * class) and the current one.</p>
  */
 public final class Bench {
 
@@ -39,13 +40,19 @@ public final class Bench {
     private final MyBigNumber current = new MyBigNumber();
 
     public static void main(String[] args) {
-        Logger jul = Logger.getLogger(MyBigNumber.class.getName());
-        Level previousLevel = jul.getLevel();
-        boolean previousParents = jul.getUseParentHandlers();
+        Logger[] loggers = {
+                Logger.getLogger(MyBigNumber.class.getName()),
+                Logger.getLogger(LegacyMyBigNumber.class.getName())};
+        Level[] previousLevels = new Level[loggers.length];
+        boolean[] previousParents = new boolean[loggers.length];
         Handler formatting = new FormattingHandler();
         try {
-            jul.setUseParentHandlers(false);
-            jul.setLevel(Level.WARNING); // INFO disabled: the hot path under test
+            for (int i = 0; i < loggers.length; i++) {
+                previousLevels[i] = loggers[i].getLevel();
+                previousParents[i] = loggers[i].getUseParentHandlers();
+                loggers[i].setUseParentHandlers(false);
+                loggers[i].setLevel(Level.WARNING); // INFO disabled: the hot path under test
+            }
 
             System.out.println("sanity: " + checkEquivalence());
             System.out.println();
@@ -54,29 +61,33 @@ public final class Bench {
             for (int n : SIZES) {
                 String a = digits(n, 1);
                 String b = digits(n, 2);
-                quiet.add(new Case(n, "old sum()", () -> new Old().sum(a, b)));
+                quiet.add(new Case(n, "old sum()", () -> new LegacyMyBigNumber().sum(a, b)));
                 quiet.add(new Case(n, "new sum()", () -> new Bench().current.sum(a, b)));
-                quiet.add(new Case(n, "old sumWithSteps()", () -> new Old().sumWithSteps(a, b)));
+                quiet.add(new Case(n, "old sumWithSteps()", () -> new LegacyMyBigNumber().sumWithSteps(a, b)));
                 quiet.add(new Case(n, "new sumWithSteps()", () -> new Bench().current.sumWithSteps(a, b)));
             }
             report(quiet);
 
-            jul.addHandler(formatting);
-            jul.setLevel(Level.ALL); // INFO enabled: the logging path
+            for (Logger logger : loggers) {
+                logger.addHandler(formatting);
+                logger.setLevel(Level.ALL); // INFO enabled: the logging path
+            }
             System.out.println();
             System.out.println("== INFO enabled (records formatted by the handler into a discard sink) ==");
             List<Case> logging = new ArrayList<>();
             String a = digits(LOGGING_SIZE, 1);
             String b = digits(LOGGING_SIZE, 2);
-            logging.add(new Case(LOGGING_SIZE, "old sum()", () -> new Old().sum(a, b)));
+            logging.add(new Case(LOGGING_SIZE, "old sum()", () -> new LegacyMyBigNumber().sum(a, b)));
             logging.add(new Case(LOGGING_SIZE, "new sum()", () -> new Bench().current.sum(a, b)));
-            logging.add(new Case(LOGGING_SIZE, "old sumWithSteps()", () -> new Old().sumWithSteps(a, b)));
+            logging.add(new Case(LOGGING_SIZE, "old sumWithSteps()", () -> new LegacyMyBigNumber().sumWithSteps(a, b)));
             logging.add(new Case(LOGGING_SIZE, "new sumWithSteps()", () -> new Bench().current.sumWithSteps(a, b)));
             report(logging);
         } finally {
-            jul.removeHandler(formatting);
-            jul.setUseParentHandlers(previousParents);
-            jul.setLevel(previousLevel);
+            for (int i = 0; i < loggers.length; i++) {
+                loggers[i].removeHandler(formatting);
+                loggers[i].setUseParentHandlers(previousParents[i]);
+                loggers[i].setLevel(previousLevels[i]);
+            }
         }
     }
 
@@ -120,7 +131,7 @@ public final class Bench {
      */
     private static String checkEquivalence() {
         MyBigNumber current = new MyBigNumber();
-        Old old = new Old();
+        LegacyMyBigNumber old = new LegacyMyBigNumber();
         for (int n : new int[]{1, 2, 17, 1_000, 10_000, 50_000}) {
             for (String[] pair : new String[][]{
                     {digits(n, 1), digits(n, 2)},
@@ -183,60 +194,6 @@ public final class Bench {
 
         @Override
         public void close() {
-        }
-    }
-
-    /**
-     * {@code MyBigNumber} as it was before the optimization: {@code sum()}
-     * delegates to {@code sumWithSteps()}, every column builds a
-     * {@code StringBuilder} snapshot, a {@code Step} and an {@code ArrayList}
-     * entry, and the logger name is the one the bench configures.
-     */
-    private static final class Old {
-
-        private static final System.Logger LOG = System.getLogger(MyBigNumber.class.getName());
-
-        String sum(String stn1, String stn2) {
-            return sumWithSteps(stn1, stn2).sum();
-        }
-
-        MyBigNumber.SumResult sumWithSteps(String stn1, String stn2) {
-            LOG.log(System.Logger.Level.INFO, "Input: stn1=\"{0}\", stn2=\"{1}\"", stn1, stn2);
-
-            NumberStrings.requireDigits(stn1, "stn1");
-            NumberStrings.requireDigits(stn2, "stn2");
-            stn1 = NumberStrings.stripLeadingZeros(stn1);
-            stn2 = NumberStrings.stripLeadingZeros(stn2);
-
-            StringBuilder result = new StringBuilder(Math.max(stn1.length(), stn2.length()) + 1);
-            int carry = 0;
-            int stepIndex = 0;
-            List<MyBigNumber.Step> steps = new ArrayList<>();
-
-            int i = stn1.length() - 1;
-            int j = stn2.length() - 1;
-
-            while (i >= 0 || j >= 0 || carry > 0) {
-                int firstDigit = i >= 0 ? stn1.charAt(i--) - '0' : 0;
-                int secondDigit = j >= 0 ? stn2.charAt(j--) - '0' : 0;
-
-                int carryIn = carry;
-                int columnTotal = firstDigit + secondDigit + carryIn;
-                int resultDigit = columnTotal % 10;
-                carry = columnTotal / 10;
-                result.append(resultDigit);
-
-                String resultSoFar = new StringBuilder(result).reverse().toString();
-                MyBigNumber.Step step = new MyBigNumber.Step(++stepIndex, firstDigit, secondDigit,
-                        carryIn, columnTotal, resultDigit, carry, resultSoFar);
-                LOG.log(System.Logger.Level.INFO, "{0}", step);
-                steps.add(step);
-            }
-
-            String sum = result.reverse().toString();
-            LOG.log(System.Logger.Level.INFO, "Final: {0} + {1} = {2}", stn1, stn2, sum);
-
-            return new MyBigNumber.SumResult(sum, List.copyOf(steps));
         }
     }
 
