@@ -9,4 +9,7 @@ Do not add a database, ORM, REST API, message bus, or third module. There is no 
 
 Match the existing style: constructor injection, no Lombok, JUnit 5, records for results. Run `./gradlew test` in the module you edit (`gradlew.bat test` on Windows).
 
+Before generating or editing code, read and follow [docs/coding-rules.md](../docs/coding-rules.md). Do not restate those rules here.
+
+
 Spec: `docs/requirement.md` and `docs/Add2Num_High-level-requirement_v1.8.md`. Behavior: `mci-core/docs/usage.md`. The code wins if a doc disagrees.

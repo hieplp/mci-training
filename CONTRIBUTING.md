@@ -4,6 +4,8 @@ Do not push to `main`. Open a pull request from an issue.
 
 ## Branches
 
+Branch, loop, and generation rules are in [docs/coding-rules.md](docs/coding-rules.md).
+
 `feature/<issue>-<desc>`, `fix/<issue>-<desc>`, or `perf/<desc>`.
 
 `docs/requirement.md` asks for the Task 1 snapshot on branch `core` or tag `0.0.1`. Do not use that branch for unrelated work.

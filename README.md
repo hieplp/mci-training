@@ -37,6 +37,9 @@ See [mci-web/README.md](mci-web/README.md) for run and test instructions.
 - [docs/how-to-run.md](docs/how-to-run.md) — beginner's guide to running the application
 - [docs/requirement.md](docs/requirement.md) — project requirements
 - [docs/Add2Num_High-level-requirement_v1.8.md](docs/Add2Num_High-level-requirement_v1.8.md) — high-level requirements specification
+- [docs/coding-rules.md](docs/coding-rules.md) — stack, layout, and generation rules
+- [docs/domain-model.md](docs/domain-model.md) — operands, sum, and column steps
+- [docs/api-spec.md](docs/api-spec.md) — library methods and the page contract
 
 ## Contributing
 
