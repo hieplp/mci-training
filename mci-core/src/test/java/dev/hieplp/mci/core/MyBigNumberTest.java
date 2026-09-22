@@ -61,6 +61,7 @@ class MyBigNumberTest {
         assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("1 2", "1"));
         assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("١٢٣", "1")); // Arabic-Indic digits
         assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("1", "2x"));
+        assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("1", "-5"));
         assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("1", "abc"));
         assertThrows(IllegalArgumentException.class, () -> bigNumber.sum("abc", "xyz"));
     }
