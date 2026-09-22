@@ -44,36 +44,69 @@ public class MyBigNumber {
     public SumResult sumWithSteps(String stn1, String stn2) {
         LOG.info("Input: stn1=\"{0}\", stn2=\"{1}\"", stn1, stn2);
 
-        NumberStrings.requireDigits(stn1, "stn1");
-        NumberStrings.requireDigits(stn2, "stn2");
+        if (stn1 == null || stn1.isEmpty()) {
+            LOG.warn("Invalid operand {0}: null or empty", "stn1");
+            throw new IllegalArgumentException("stn1 must not be null or empty");
+        }
+        if (stn2 == null || stn2.isEmpty()) {
+            LOG.warn("Invalid operand {0}: null or empty", "stn2");
+            throw new IllegalArgumentException("stn2 must not be null or empty");
+        }
         stn1 = NumberStrings.stripLeadingZeros(stn1);
         stn2 = NumberStrings.stripLeadingZeros(stn2);
 
-        StringBuilder result = new StringBuilder(Math.max(stn1.length(), stn2.length()) + 1);
+        char[] result = new char[Math.max(stn1.length(), stn2.length()) + 1];
         int carry = 0;
         int stepIndex = 0;
         List<Step> steps = new ArrayList<>();
 
         int i = stn1.length() - 1;
         int j = stn2.length() - 1;
+        int resultIndex = result.length - 1;
+        char firstCharacter = '0';
+        char secondCharacter = '0';
+        int firstDigit = 0;
+        int secondDigit = 0;
+        int carryIn = 0;
+        int columnTotal = 0;
+        int resultDigit = 0;
+        String resultSoFar = "";
+        Step step = null;
 
         while (i >= 0 || j >= 0 || carry > 0) {
-            int firstDigit = i >= 0 ? stn1.charAt(i--) - '0' : 0;
-            int secondDigit = j >= 0 ? stn2.charAt(j--) - '0' : 0;
+            firstCharacter = '0';
+            if (i >= 0) {
+                firstCharacter = stn1.charAt(i--);
+                if (firstCharacter < '0' || firstCharacter > '9') {
+                    LOG.warn("Invalid operand {0}: non-digit character ''{1}'' at index {2}", "stn1", firstCharacter, i + 1);
+                    throw new IllegalArgumentException("stn1 contains non-digit character '" + firstCharacter + "' at index " + (i + 1));
+                }
+            }
+            firstDigit = firstCharacter - '0';
 
-            int carryIn = carry;
-            int columnTotal = firstDigit + secondDigit + carryIn;
-            int resultDigit = columnTotal % 10;
+            secondCharacter = '0';
+            if (j >= 0) {
+                secondCharacter = stn2.charAt(j--);
+                if (secondCharacter < '0' || secondCharacter > '9') {
+                    LOG.warn("Invalid operand {0}: non-digit character ''{1}'' at index {2}", "stn2", secondCharacter, j + 1);
+                    throw new IllegalArgumentException("stn2 contains non-digit character '" + secondCharacter + "' at index " + (j + 1));
+                }
+            }
+            secondDigit = secondCharacter - '0';
+
+            carryIn = carry;
+            columnTotal = firstDigit + secondDigit + carryIn;
+            resultDigit = columnTotal % 10;
             carry = columnTotal / 10;
-            result.append(resultDigit);
+            result[resultIndex--] = (char) ('0' + resultDigit);
 
-            String resultSoFar = new StringBuilder(result).reverse().toString();
-            Step step = new Step(++stepIndex, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carry, resultSoFar);
+            resultSoFar = new String(result, resultIndex + 1, result.length - resultIndex - 1);
+            step = new Step(++stepIndex, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carry, resultSoFar);
             LOG.info("{0}", step);
             steps.add(step);
         }
 
-        String sum = result.reverse().toString();
+        String sum = new String(result, resultIndex + 1, result.length - resultIndex - 1);
         LOG.info("Final: {0} + {1} = {2}", stn1, stn2, sum);
 
         return new SumResult(sum, List.copyOf(steps));
