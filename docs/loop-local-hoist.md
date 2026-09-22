@@ -274,6 +274,31 @@ Logging on (JUL INFO, so each step still formats a sentence). 200 digits, 4 call
 
 Still the same ballpark. Logging, not the declaration line, is why this is about 35× slower and about 22× more bytes than the logging-off run of the same size.
 
+## CPU, RAM, and the other counters
+
+Same stored pair. Logging off. 1,000 digits, 800 calls, 5 fresh JVMs each. `-Xms64m -Xmx512m`. Loop time is `nanoTime` around the calls only. The other counters are the whole process from `/usr/bin/time -l`, so they include JVM startup. Medians.
+
+| | Inside the loop | Before the loop |
+| --- | --- | --- |
+| Loop time | 46.3 ms | 49.3 ms |
+| User CPU | 0.13 s | 0.13 s |
+| System CPU | 0.01 s | 0.01 s |
+| Instructions retired | 1,941,651,906 | 1,943,997,570 |
+| Cycles | 640,105,846 | 642,807,200 |
+| GC | 8 collections, 1 ms | 8 collections, 1 ms |
+| Bytes allocated | 505,662,720 | 505,518,240 |
+| Heap after GC | 5,406,312 | 5,406,328 |
+| Max RSS | 189,120,512 | 188,891,136 |
+| Peak footprint | 165,987,264 | 165,839,880 |
+| Page reclaims | 12,655 | 12,654 |
+| Page faults | 0 | 0 |
+| Involuntary context switches | 611 | 615 |
+
+Instructions differ by 0.12%. Cycles by 0.42%. Allocated bytes overlap (old 505,229,280–505,807,200, new 505,397,840–505,747,320). RSS overlaps. GC count and GC time match. Page faults were 0 except one inside run that had 3. Context switches sit in the same band.
+
+The loop-time median is 6.6% higher for the before-the-loop copy (46.3 ms vs 49.3 ms). User CPU time, at 0.01 s resolution, is 0.13 s both ways. A 3 ms gap does not show up there. The five loop times overlap at the edge: inside 45.8, 46.0, 46.3, 46.4, 55.1 ms; before 46.1, 48.7, 49.3, 49.4, 53.1 ms. Not a CPU win for moving the declarations out. The instruction count says the work is the same.
+
+
 
 ## Recommendation
 

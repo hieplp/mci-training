@@ -55,6 +55,7 @@ public final class HoistBench {
                 (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
         long alloc0 = threads.getCurrentThreadAllocatedBytes();
         long gc0 = gcCount();
+        long gcTime0 = gcTime();
         long t0 = System.nanoTime();
         long acc = 0;
         Object kept = null;
@@ -73,11 +74,13 @@ public final class HoistBench {
         }
         long elapsed = System.nanoTime() - t0;
         long allocated = threads.getCurrentThreadAllocatedBytes() - alloc0;
+        long gc = gcCount() - gc0;
+        long gcMs = gcTime() - gcTime0;
         System.gc();
         long used = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
         System.out.printf(
-                "mode=%s digits=%d calls=%d log=%s ns=%d alloc_bytes=%d gc_count=%d heap_after_gc=%d acc=%d kept=%s%n",
-                mode, digits, calls, logOff ? "off" : "on", elapsed, allocated, gcCount() - gc0, used, acc,
+                "mode=%s digits=%d calls=%d log=%s ns=%d alloc_bytes=%d gc_count=%d gc_ms=%d heap_after_gc=%d acc=%d kept=%s%n",
+                mode, digits, calls, logOff ? "off" : "on", elapsed, allocated, gc, gcMs, used, acc,
                 kept.getClass().getSimpleName());
     }
     private static long usedAfterGc() {
@@ -96,6 +99,17 @@ public final class HoistBench {
         long n = 0;
         for (GarbageCollectorMXBean bean : ManagementFactory.getGarbageCollectorMXBeans()) {
             long c = bean.getCollectionCount();
+            if (c > 0) {
+                n += c;
+            }
+        }
+        return n;
+    }
+
+    private static long gcTime() {
+        long n = 0;
+        for (GarbageCollectorMXBean bean : ManagementFactory.getGarbageCollectorMXBeans()) {
+            long c = bean.getCollectionTime();
             if (c > 0) {
                 n += c;
             }
