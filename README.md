@@ -38,6 +38,11 @@ See [mci-web/README.md](mci-web/README.md) for run and test instructions.
 - [docs/requirement.md](docs/requirement.md) — project requirements
 - [docs/Add2Num_High-level-requirement_v1.8.md](docs/Add2Num_High-level-requirement_v1.8.md) — high-level requirements specification
 
+## Contributing
+
+Open an issue or pull request from the templates in `.github/`. Branch,
+commit, and review rules are in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
 Distributed under the terms specified in [LICENSE](LICENSE).
