@@ -4,6 +4,8 @@ Do not push to `main`. Open a pull request from an issue.
 
 ## Branches
 
+Cut each change from `main`. Do not add commits to an existing feature branch, including one whose pull request is already open or merged.
+
 `feature/<issue>-<desc>`, `fix/<issue>-<desc>`, or `perf/<desc>`.
 
 `docs/requirement.md` asks for the Task 1 snapshot on branch `core` or tag `0.0.1`. Do not use that branch for unrelated work.

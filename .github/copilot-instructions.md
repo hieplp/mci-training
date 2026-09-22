@@ -9,4 +9,19 @@ Do not add a database, ORM, REST API, message bus, or third module. There is no 
 
 Match the existing style: constructor injection, no Lombok, JUnit 5, records for results. Run `./gradlew test` in the module you edit (`gradlew.bat test` on Windows).
 
+Cut each change from `main` on a new branch. Do not add commits to an existing feature branch, including one whose pull request is already open or merged.
+
+Declare every local a loop body uses before the loop. Assign inside the body. Do not declare those locals in the body. A `for` index may stay in the `for` header.
+
+```java
+int digit = 0;
+String partial = null;
+
+while (hasMore) {
+    digit = nextDigit();
+    partial = accumulate(digit);
+}
+```
+
+
 Spec: `docs/requirement.md` and `docs/Add2Num_High-level-requirement_v1.8.md`. Behavior: `mci-core/docs/usage.md`. The code wins if a doc disagrees.
