@@ -207,17 +207,16 @@ Rerun: `./bench/loop-local/run.sh`
 
 The script compiles all three against this repo's `AppLogger` and `NumberStrings`. JDK 21. One JVM per fork. `-XX:+UseParallelGC -Xms64m -Xmx512m`. Logging off. Every run checks the sum against `BigInteger`.
 
-| directory | what it is |
-| --- | --- |
-| `bench/loop-local/old` | This repo's `MyBigNumber`. `StringBuilder` snapshots. Step locals declared inside the `while`. |
-| `bench/loop-local/hoist-only` | That same method. The only change is declaring `firstDigit`, `secondDigit`, `carryIn`, `columnTotal`, `resultDigit`, `resultSoFar`, and `step` before the `while` and assigning inside. |
-| `bench/loop-local/updated` | Exact copy of `~/Projects/training/mci-training/mci-core/src/main/java/dev/hieplp/mci/core/MyBigNumber.java`. `char[]` result, digit checks inside the loop, and those locals declared before the loop. |
+| | old | only move the variables | your file |
+| --- | --- | --- | --- |
+| File | `bench/loop-local/old` | `bench/loop-local/hoist-only` | `bench/loop-local/updated` |
+| What | This repo's `MyBigNumber`. `StringBuilder` snapshots. Step locals declared inside the `while`. | That same method. Only `firstDigit`, `secondDigit`, `carryIn`, `columnTotal`, `resultDigit`, `resultSoFar`, and `step` move above the `while`. | Exact copy of `~/Projects/training/mci-training/mci-core/src/main/java/dev/hieplp/mci/core/MyBigNumber.java`. `char[]` result, digit checks inside the loop, locals declared before the loop. |
 
 `i` and `j` stay outside in all three. They are the loop indexes. All three agreed on 40 nines plus 40 ones: sum `11111111111111111111111111111111111111110`, 41 steps.
 
 1,000 digits, 800 calls, 5 forks. Medians.
 
-| | old | hoist-only | updated |
+| | old | only move the variables | your file |
 | --- | --- | --- | --- |
 | Loop time | 122.4 ms | 121.9 ms | 46.9 ms |
 | Instructions | 3,709,223,338 | 3,711,457,444 | 1,947,991,701 |
