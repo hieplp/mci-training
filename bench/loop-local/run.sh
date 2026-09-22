@@ -1,10 +1,8 @@
 #!/bin/sh
-# Three copies of MyBigNumber:
-#   old         repo original. Locals declared inside the while. StringBuilder snapshots.
-#   hoist-only  same algorithm as old. Only the while-body locals are declared before the loop.
-#   updated     copy of ~/Projects/training/mci-training/.../MyBigNumber.java
-#               (char[] result, checks inside the loop, locals declared before the loop).
-# i and j stay outside in all three. They are the loop indexes.
+# JMH 1.37 plus its gc profiler. Three copies, one classpath each.
+#   old         this repo's MyBigNumber
+#   hoist-only  same method, while-body locals declared before the loop
+#   updated     char[] result, locals declared before the loop
 set -eu
 cd "$(dirname "$0")/../.."
 ROOT=$(pwd)
@@ -21,14 +19,29 @@ export PATH="$JDK/bin:$PATH"
 
 SRC="$ROOT/mci-core/src/main/java/dev/hieplp/mci/core"
 OUT="$ROOT/bench/loop-local/out"
+JMH="$OUT/jmh"
 rm -rf "$OUT"
-mkdir -p "$OUT/lib" "$OUT/old" "$OUT/hoist-only" "$OUT/updated" "$OUT/bench"
+mkdir -p "$OUT/lib" "$OUT/old" "$OUT/hoist-only" "$OUT/updated" "$OUT/bench" "$JMH"
+
+fetch() {
+  name=$1
+  url=$2
+  curl -fsSL -o "$JMH/$name" "$url"
+}
+fetch jmh-core-1.37.jar https://repo1.maven.org/maven2/org/openjdk/jmh/jmh-core/1.37/jmh-core-1.37.jar
+fetch jmh-generator-annprocess-1.37.jar https://repo1.maven.org/maven2/org/openjdk/jmh/jmh-generator-annprocess/1.37/jmh-generator-annprocess-1.37.jar
+fetch jopt-simple-5.0.4.jar https://repo1.maven.org/maven2/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar
+fetch commons-math3-3.6.1.jar https://repo1.maven.org/maven2/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar
+JMH_CP="$JMH/jmh-core-1.37.jar:$JMH/jopt-simple-5.0.4.jar:$JMH/commons-math3-3.6.1.jar"
+PROC="$JMH/jmh-generator-annprocess-1.37.jar"
 
 javac -d "$OUT/lib" "$SRC/AppLogger.java" "$SRC/NumberStrings.java"
 javac -cp "$OUT/lib" -d "$OUT/old" "$ROOT/bench/loop-local/old/MyBigNumber.java"
 javac -cp "$OUT/lib" -d "$OUT/hoist-only" "$ROOT/bench/loop-local/hoist-only/MyBigNumber.java"
 javac -cp "$OUT/lib" -d "$OUT/updated" "$ROOT/bench/loop-local/updated/MyBigNumber.java"
 javac -cp "$OUT/lib:$OUT/old" -d "$OUT/bench" "$ROOT/bench/loop-local/HoistBench.java"
+javac -cp "$OUT/lib:$OUT/old:$JMH_CP" -processorpath "$PROC:$JMH_CP" \
+  -d "$OUT/bench" "$ROOT/bench/loop-local/AddBench.java"
 
 echo "===== same sum? ====="
 old_sum=$(java -cp "$OUT/old:$OUT/lib:$OUT/bench" HoistBench check 40 1 off)
@@ -42,21 +55,8 @@ if [ "$old_sum" != "$hoist_sum" ] || [ "$old_sum" != "$updated_sum" ]; then
   exit 1
 fi
 
-run_one() {
-  variant=$1
-  mode=$2
-  digits=$3
-  calls=$4
-  log=$5
-  /usr/bin/time -l java -cp "$OUT/$variant:$OUT/lib:$OUT/bench" \
-    -XX:+UseParallelGC -Xms64m -Xmx512m \
-    HoistBench "$mode" "$digits" "$calls" "$log" 2>&1 \
-    | awk -v v="$variant" '/^mode=/{line=$0} /maximum resident set size/{rss=$1} /instructions retired/{ins=$1} /cycles elapsed/{cyc=$1} /peak memory footprint/{peak=$1} END{print "variant=" v, line, "maxrss_bytes=" rss, "insns=" ins, "cycles=" cyc, "peak_bytes=" peak}'
-}
-
-echo "===== 1000 digits, 800 calls, log off, 5 forks ====="
+echo "===== JMH 1.37, gc profiler, 1000 digits, logging off ====="
 for variant in old hoist-only updated; do
-  for fork in 1 2 3 4 5; do
-    run_one "$variant" steps 1000 800 off
-  done
+  echo "----- $variant -----"
+  java -cp "$OUT/$variant:$OUT/lib:$OUT/bench:$JMH_CP" org.openjdk.jmh.Main -prof gc
 done
