@@ -35,3 +35,14 @@ build/
 
 # IDE output (VS Code)
 bin/
+
+# Secrets
+.env
+.env.*
+*.pem
+secrets/
+
+# IDE / OS
+.idea/
+*.iml
+.DS_Store
