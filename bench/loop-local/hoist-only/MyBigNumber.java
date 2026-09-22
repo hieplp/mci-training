@@ -56,19 +56,26 @@ public class MyBigNumber {
 
         int i = stn1.length() - 1;
         int j = stn2.length() - 1;
+        int firstDigit = 0;
+        int secondDigit = 0;
+        int carryIn = 0;
+        int columnTotal = 0;
+        int resultDigit = 0;
+        String resultSoFar = null;
+        Step step = null;
 
         while (i >= 0 || j >= 0 || carry > 0) {
-            int firstDigit = i >= 0 ? stn1.charAt(i--) - '0' : 0;
-            int secondDigit = j >= 0 ? stn2.charAt(j--) - '0' : 0;
+            firstDigit = i >= 0 ? stn1.charAt(i--) - '0' : 0;
+            secondDigit = j >= 0 ? stn2.charAt(j--) - '0' : 0;
 
-            int carryIn = carry;
-            int columnTotal = firstDigit + secondDigit + carryIn;
-            int resultDigit = columnTotal % 10;
+            carryIn = carry;
+            columnTotal = firstDigit + secondDigit + carryIn;
+            resultDigit = columnTotal % 10;
             carry = columnTotal / 10;
             result.append(resultDigit);
 
-            String resultSoFar = new StringBuilder(result).reverse().toString();
-            Step step = new Step(++stepIndex, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carry, resultSoFar);
+            resultSoFar = new StringBuilder(result).reverse().toString();
+            step = new Step(++stepIndex, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carry, resultSoFar);
             LOG.info("{0}", step);
             steps.add(step);
         }

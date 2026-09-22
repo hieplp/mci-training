@@ -201,28 +201,39 @@ Log off:
 
 At 200 digits and 5 calls, INFO logging allocated 21057232 bytes and took 42.4 ms. Logging off allocated 405528 bytes and took 0.99 ms. About 52× the bytes and 43× the time, from `MessageFormat` plus the per-step snapshot, not from where `firstDigit` is declared. `sum` and `sumWithSteps` allocate the same amount during the call. The only retained-heap gap is after return: at 1000 digits with logging off, keeping `SumResult` left 2061472 bytes after GC, and keeping only the sum string left 1464304. Compact strings make `resultSoFar` one byte per digit; the retained strings are still O(n²) because step k copies k digits.
 
-## Same algorithm, two stored files
+## Three stored files
 
-The file under test is a copy of `~/Projects/training/mci-training/mci-core/src/main/java/dev/hieplp/mci/core/MyBigNumber.java`. It already declares the step locals before the `while`. It also uses a `char[]` result, which is a different algorithm from the `StringBuilder` version in `mci-core`. Those two changes are not mixed here.
+Rerun: `./bench/loop-local/run.sh`
 
-Stored pair, same algorithm, only the declaration site differs:
+The script compiles all three against this repo's `AppLogger` and `NumberStrings`. JDK 21. One JVM per fork. `-XX:+UseParallelGC -Xms64m -Xmx512m`. Logging off. Every run checks the sum against `BigInteger`.
 
-- `bench/loop-local/old/MyBigNumber.java` — `firstCharacter`, `firstDigit`, `secondCharacter`, `secondDigit`, `carryIn`, `columnTotal`, `resultDigit`, `resultSoFar`, and `step` are declared inside the loop.
-- `bench/loop-local/new/MyBigNumber.java` — exact copy of the file above. Those locals are declared before the loop and assigned inside.
+| directory | what it is |
+| --- | --- |
+| `bench/loop-local/old` | This repo's `MyBigNumber`. `StringBuilder` snapshots. Step locals declared inside the `while`. |
+| `bench/loop-local/hoist-only` | That same method. The only change is declaring `firstDigit`, `secondDigit`, `carryIn`, `columnTotal`, `resultDigit`, `resultSoFar`, and `step` before the `while` and assigning inside. |
+| `bench/loop-local/updated` | Exact copy of `~/Projects/training/mci-training/mci-core/src/main/java/dev/hieplp/mci/core/MyBigNumber.java`. `char[]` result, digit checks inside the loop, and those locals declared before the loop. |
 
-`i`, `j`, and `resultIndex` stay outside in both. They have to. They are the loop indexes.
+`i` and `j` stay outside in all three. They are the loop indexes. All three agreed on 40 nines plus 40 ones: sum `11111111111111111111111111111111111111110`, 41 steps.
 
-Rerun:
+1,000 digits, 800 calls, 5 forks. Medians.
 
-```bash
-./bench/loop-local/run.sh
-```
+| | old | hoist-only | updated |
+| --- | --- | --- | --- |
+| Loop time | 122.4 ms | 121.9 ms | 46.9 ms |
+| Instructions | 3,709,223,338 | 3,711,457,444 | 1,947,991,701 |
+| Cycles | 1,203,596,086 | 1,207,762,413 | 642,632,643 |
+| GC | 11 times, 2 ms | 11 times, 2 ms | 8 times, 1 ms |
+| Bytes allocated | 954,118,384 | 954,094,304 | 505,759,040 |
+| Heap after GC | 5,456,128 | 5,456,144 | 5,406,368 |
+| Process RAM | 236,535,808 | 236,503,040 | 188,956,672 |
+| Peak footprint | 213,189,544 | 213,320,640 | 165,839,856 |
 
-The script compiles both against this repo's `AppLogger` and `NumberStrings`, checks that both sums match `BigInteger`, then measures time, allocated bytes, heap after GC, and macOS max RSS. JDK 21. One JVM per fork. `-XX:+UseParallelGC -Xms32m -Xmx512m`.
+Hoist-only versus old is noise. Loop time 121.9 ms vs 122.4 ms. Allocated bytes 954,094,304 vs 954,118,384. Same 11 collections. Process RAM matches. Moving the declarations does nothing you can measure.
 
-Both sides agreed on 40 nines plus 40 ones: sum `11111111111111111111111111111111111111110`, 41 steps. Every timed run also checked the sum against `BigInteger`.
+Updated versus old is the other edits, not the declarations. About 2.6× less loop time (122.4 / 46.9). About half the instructions (3.71 billion vs 1.95 billion). About half the bytes allocated (954 MB vs 506 MB). Three fewer garbage collections. Process RAM 226 MB vs 180 MB. Heap left after GC is almost the same (5.46 MB vs 5.41 MB), because all three keep the same step list. The saving is garbage created during the call: `new StringBuilder(result).reverse()` every column, which the `char[]` version does not do.
 
-`javap`: old `sumWithSteps` is `stack=10, locals=19`. New is `stack=10, locals=20`. One extra stack slot. That is not heap.
+The tables below are an earlier check. They compared two copies of the `char[]` algorithm, declaration site only. Those two sources are not what `old/` and `updated/` are now.
+
 
 Logging off. Five forks. Bytes allocated were the same number on every fork.
 
