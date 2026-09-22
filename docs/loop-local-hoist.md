@@ -123,6 +123,84 @@ Same harness, `n=2000`, 2000 calls, 3 forks. `alloc-inside` constructs a `String
 
 Every reused fork beat every allocating fork. Mean ratio about 2.2×. Variance on the allocating side is GC. That is the kind of change that shows up. The coding rule does not require it.
 
+
+## RAM
+
+Same JDK, `-XX:+UseParallelGC`, `-Xms64m -Xmx256m` for the microbench. Allocated bytes are `ThreadMXBean.getCurrentThreadAllocatedBytes` on the calling thread. Process RAM is macOS `maximum resident set size` from `/usr/bin/time -l`. One mode per JVM.
+
+### Declaration site does not allocate
+
+Primitive temps, `n=4000`, 200 calls, 3 forks. The counter includes harness overhead. It does not include a `new` in the loop.
+
+| mode | alloc bytes (every fork) | GC count | max RSS |
+| --- | --- | --- | --- |
+| declared before | 291744 | 0 | 48791552 |
+| declared inside | 291744 | 0 | 48889856 |
+
+Identical allocation counter. RSS differs by 98 KB, which is noise next to a 48 MB process.
+
+Reference form of the rule: `StringBuilder partial = null` before the loop, `partial = new StringBuilder()` inside. Versus the same `new` declared in the body. `n=4000`, 200 calls, 3 forks.
+
+| mode | alloc bytes per fork | mean alloc | GC count | max RSS |
+| --- | --- | --- | --- | --- |
+| ref declared before | 42392392, 41810728, 41808016 | 42003712 | 2 | 65241088 |
+| ref declared inside | 42003904, 42017656, 42298504 | 42106688 | 2 | 65290240 |
+
+Inside / before = 1.002. Same two collections. RSS differs by 48 KB. Moving the declaration does not move the `new`, so it does not move the heap.
+
+Frame size does not move either. The primitive pair was `locals=8` both ways. A local slot exists for the frame, not for the source line that names it.
+
+### Hoisting a reference can keep the last object alive
+
+`byte[1_000_000]` assigned each of 4 iterations, then `System.gc()` before the method returns. Allocated bytes were 4292456 in every fork of every mode. Retained heap was not.
+
+| mode | heap after GC (3 forks, identical) |
+| --- | --- |
+| reference declared before the loop | 2627952 |
+| reference declared in the body | 1627928 |
+| body local, then an `int` overwrites that slot | 1627936 |
+
+Before minus inside = 1000024 bytes. That is one `byte[1000000]` plus the 24-byte array header. `javap -v` shows why. The hoisted form's stack map at the GC call still lists the `byte[]` local, so it is a GC root until the method returns. The in-body form's stack map at that call does not list the slot, and the collector reclaimed the array. Overwriting the slot with an `int` does the same. This is a retained-heap cost of the rule for references, not a saving. It does not apply to the `int` temps in `sumWithSteps`.
+
+### What actually allocates
+
+One reused `StringBuilder` (`setLength(0)` each iteration), same `n` and call count:
+
+| mode | alloc bytes | GC count | max RSS |
+| --- | --- | --- | --- |
+| `new` each iteration | ~42000000 | 2 | ~65200000 |
+| one builder, reused | 303112 | 0 | 49528832 |
+
+About 139× fewer bytes allocated, no GC, and about 16 MB less max RSS. That is object reuse, which the coding rule does not require.
+
+### `sumWithSteps` on this tree
+
+Real `MyBigNumber`, classpath `mci-core/build/classes/java/main`. `-Xms32m -Xmx512m`. `sum` is `sumWithSteps(...).sum()`, so it allocates the steps and then drops them. JUL default is INFO, and each step calls `Step.toString()` (`MessageFormat`). `mci.log=off` sets that logger to `OFF` before the first call.
+
+Log on:
+
+| call | digits | calls | ns | alloc bytes | heap after GC | max RSS |
+| --- | --- | --- | --- | --- | --- | --- |
+| steps | 50 | 5 | 23264542 | 5095632 | 2151752 | 69091328 |
+| steps | 200 | 5 | 42393042 | 21057232 | 2186984 | 94781440 |
+| steps | 1000 | 2 | 62872792 | 53205392 | 3269160 | 105299968 |
+| sum | 50 | 5 | 23266708 | 5095656 | 2145528 | 69369856 |
+| sum | 200 | 5 | 42497292 | 21057304 | 2147408 | 94011392 |
+| sum | 1000 | 2 | 63243458 | 53205464 | 2662568 | 104497152 |
+
+Log off:
+
+| call | digits | calls | ns | alloc bytes | heap after GC | max RSS |
+| --- | --- | --- | --- | --- | --- | --- |
+| steps | 50 | 5 | 413334 | 66448 | 1467736 | 48168960 |
+| steps | 200 | 5 | 989500 | 405528 | 1501472 | 48807936 |
+| steps | 1000 | 2 | 889042 | 2406960 | 2061472 | 51806208 |
+| sum | 50 | 5 | 420625 | 66448 | 1461456 | 48414720 |
+| sum | 200 | 5 | 966625 | 405528 | 1461896 | 48676864 |
+| sum | 1000 | 2 | 879250 | 2406960 | 1464304 | 50544640 |
+
+At 200 digits and 5 calls, INFO logging allocated 21057232 bytes and took 42.4 ms. Logging off allocated 405528 bytes and took 0.99 ms. About 52× the bytes and 43× the time, from `MessageFormat` plus the per-step snapshot, not from where `firstDigit` is declared. `sum` and `sumWithSteps` allocate the same amount during the call. The only retained-heap gap is after return: at 1000 digits with logging off, keeping `SumResult` left 2061472 bytes after GC, and keeping only the sum string left 1464304. Compact strings make `resultSoFar` one byte per digit; the retained strings are still O(n²) because step k copies k digits.
+
 ## Recommendation
 
-Keep the rule only as a style rule, if you want one declaration site. Do not cite it as a performance change, and do not refactor `MyBigNumber` to satisfy it for speed. If a loop is slow, look for repeated allocation (`new StringBuilder`, `new String`, `new Step` per column), not for where `int` is written.
+Keep the rule only as a style rule, if you want one declaration site. It is not a CPU win and not a RAM win. For an `int`, allocation and RSS match. For a reference, hoisting can retain the last object until the method returns (measured: one extra `byte[1000000]`, 1000024 bytes after GC). Do not refactor `MyBigNumber` to satisfy the rule for speed or memory. If a loop is slow or fat, look at repeated `new` and at INFO logging of `Step.toString()`, not at where `firstDigit` is written.
