@@ -31,6 +31,24 @@ public final class HoistBench {
             System.out.println("sum=" + steps.sum() + " steps=" + steps.steps().size());
             return;
         }
+        if ("ram".equals(mode)) {
+            long empty = usedAfterGc();
+            com.sun.management.ThreadMXBean threads =
+                    (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
+            long alloc0 = threads.getCurrentThreadAllocatedBytes();
+            Object kept = null;
+            for (int i = 0; i < calls; i++) {
+                kept = adder.sumWithSteps(a, b);
+            }
+            long allocated = threads.getCurrentThreadAllocatedBytes() - alloc0;
+            long withResult = usedAfterGc();
+            kept = null;
+            long dropped = usedAfterGc();
+            System.out.printf(
+                    "mode=ram digits=%d calls=%d heap_empty=%d alloc_bytes=%d heap_with_result=%d heap_dropped=%d%n",
+                    digits, calls, empty, allocated, withResult, dropped);
+            return;
+        }
 
         System.gc();
         com.sun.management.ThreadMXBean threads =
@@ -62,6 +80,17 @@ public final class HoistBench {
                 mode, digits, calls, logOff ? "off" : "on", elapsed, allocated, gcCount() - gc0, used, acc,
                 kept.getClass().getSimpleName());
     }
+    private static long usedAfterGc() {
+        System.gc();
+        try {
+            Thread.sleep(20);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        System.gc();
+        return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+    }
+
 
     private static long gcCount() {
         long n = 0;

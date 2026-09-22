@@ -38,6 +38,8 @@ if [ "$old_sum" != "$new_sum" ]; then
   exit 1
 fi
 
+
+
 run_one() {
   variant=$1
   mode=$2
@@ -49,6 +51,13 @@ run_one() {
     HoistBench "$mode" "$digits" "$calls" "$log" 2>&1 \
     | awk -v v="$variant" '/^mode=/{line=$0} /maximum resident set size/{rss=$1} END{print "variant=" v, line, "maxrss_bytes=" rss}'
 }
+echo "===== ram split: empty heap, bytes allocated, result kept, result dropped ====="
+for digits in 20 200 1000; do
+  for variant in old new; do
+    run_one "$variant" ram "$digits" 3 off
+  done
+done
+
 
 echo "===== log off, 5 forks ====="
 for variant in old new; do

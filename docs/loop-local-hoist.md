@@ -237,7 +237,33 @@ Logging off. Five forks. Bytes allocated were the same number on every fork.
 
 1000-digit times, milliseconds: inside 2.306, 2.289, 2.238, 2.185, 2.223. Before 2.161, 2.190, 2.177, 2.176, 2.253. Same overlap.
 
-Heap after GC differs by 8 bytes. Process RSS differs by tens of kilobytes on a 50 MB process. The allocated-byte counter did not move by one byte.
+Not every RAM number is the same. Three different measurements:
+
+Bytes allocated by the addition are the same on a clean run. A follow-up probe, logging off, 3 calls, 3 forks, `ThreadMXBean.getCurrentThreadAllocatedBytes`:
+
+| digits | inside the loop | before the loop |
+| --- | --- | --- |
+| 20 | 31568, every fork | 31568, every fork |
+| 200 | 168488, every fork | 168488, every fork |
+| 1000 | 1951568, every fork | 1951568, every fork |
+
+A longer run (1000 digits, 8 calls) was 5168408 on most forks. One inside fork and one before fork were 5168664, 256 bytes higher. Either side can hit that. It is not "before uses more."
+
+Heap left after `System.gc()` is not the same. Before is always 8 bytes higher, and the gap is already there before any addition:
+
+| digits | heap, nothing kept | heap, result kept | heap, result dropped |
+| --- | --- | --- | --- |
+| 20, inside | 1429536 | 1286984 | 1284608 |
+| 20, before | 1429544 | 1286992 | 1284616 |
+| 200, inside | 1429536 | 1324776 | 1284960 |
+| 200, before | 1429544 | 1324784 | 1284968 |
+| 1000, inside | 1429536 | 1884776 | 1286560 |
+| 1000, before | 1429544 | 1884784 | 1286568 |
+
+Every cell is +8 for the before-the-loop class. The step list is the same size. The 8 bytes do not grow with the number of digits, so they are not the loop. The before-the-loop class file is 3358 bytes on disk; the inside-the-loop class file is 3284. One extra stack slot (`locals=20` vs `19`) plus the `""` and `null` initializers. That fixed 8 bytes is the whole retained-heap gap.
+
+Process RSS is not locked to one number. 1000 digits, 8 calls, 3 forks: inside 54329344, 54165504, 54460416. Before 54329344, 54263808, 54329344. They overlap. Spread is about 0.3 MB on a 52 MB process.
+
 
 Logging on (JUL INFO, so each step still formats a sentence). 200 digits, 4 calls, 3 forks.
 
