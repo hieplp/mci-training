@@ -207,7 +207,7 @@ Rerun: `./bench/loop-local/run.sh`
 
 The script compiles all three against this repo's `AppLogger` and `NumberStrings`. JDK 21. One JVM per fork. `-XX:+UseParallelGC -Xms64m -Xmx512m`. Logging off. Every run checks the sum against `BigInteger`.
 
-| | old | only move the variables | your file |
+| | old | only move the variables | updated |
 | --- | --- | --- | --- |
 | File | `bench/loop-local/old` | `bench/loop-local/hoist-only` | `bench/loop-local/updated` |
 | What | This repo's `MyBigNumber`. `StringBuilder` snapshots. Step locals declared inside the `while`. | That same method. Only `firstDigit`, `secondDigit`, `carryIn`, `columnTotal`, `resultDigit`, `resultSoFar`, and `step` move above the `while`. | Exact copy of `~/Projects/training/mci-training/mci-core/src/main/java/dev/hieplp/mci/core/MyBigNumber.java`. `char[]` result, digit checks inside the loop, locals declared before the loop. |
@@ -216,7 +216,7 @@ The script compiles all three against this repo's `AppLogger` and `NumberStrings
 
 1,000 digits, 800 calls, 5 forks. Medians.
 
-| | old | only move the variables | your file |
+| | old | only move the variables | updated |
 | --- | --- | --- | --- |
 | Loop time | 122.4 ms | 121.9 ms | 46.9 ms |
 | Instructions | 3,709,223,338 | 3,711,457,444 | 1,947,991,701 |
