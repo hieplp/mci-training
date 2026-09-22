@@ -201,6 +201,54 @@ Log off:
 
 At 200 digits and 5 calls, INFO logging allocated 21057232 bytes and took 42.4 ms. Logging off allocated 405528 bytes and took 0.99 ms. About 52× the bytes and 43× the time, from `MessageFormat` plus the per-step snapshot, not from where `firstDigit` is declared. `sum` and `sumWithSteps` allocate the same amount during the call. The only retained-heap gap is after return: at 1000 digits with logging off, keeping `SumResult` left 2061472 bytes after GC, and keeping only the sum string left 1464304. Compact strings make `resultSoFar` one byte per digit; the retained strings are still O(n²) because step k copies k digits.
 
+## Same algorithm, two stored files
+
+The file under test is a copy of `~/Projects/training/mci-training/mci-core/src/main/java/dev/hieplp/mci/core/MyBigNumber.java`. It already declares the step locals before the `while`. It also uses a `char[]` result, which is a different algorithm from the `StringBuilder` version in `mci-core`. Those two changes are not mixed here.
+
+Stored pair, same algorithm, only the declaration site differs:
+
+- `bench/loop-local/old/MyBigNumber.java` — `firstCharacter`, `firstDigit`, `secondCharacter`, `secondDigit`, `carryIn`, `columnTotal`, `resultDigit`, `resultSoFar`, and `step` are declared inside the loop.
+- `bench/loop-local/new/MyBigNumber.java` — exact copy of the file above. Those locals are declared before the loop and assigned inside.
+
+`i`, `j`, and `resultIndex` stay outside in both. They have to. They are the loop indexes.
+
+Rerun:
+
+```bash
+./bench/loop-local/run.sh
+```
+
+The script compiles both against this repo's `AppLogger` and `NumberStrings`, checks that both sums match `BigInteger`, then measures time, allocated bytes, heap after GC, and macOS max RSS. JDK 21. One JVM per fork. `-XX:+UseParallelGC -Xms32m -Xmx512m`.
+
+Both sides agreed on 40 nines plus 40 ones: sum `11111111111111111111111111111111111111110`, 41 steps. Every timed run also checked the sum against `BigInteger`.
+
+`javap`: old `sumWithSteps` is `stack=10, locals=19`. New is `stack=10, locals=20`. One extra stack slot. That is not heap.
+
+Logging off. Five forks. Bytes allocated were the same number on every fork.
+
+| digits | calls | where declared | median time | bytes allocated, every fork | heap after GC | median max RSS |
+| --- | --- | --- | --- | --- | --- | --- |
+| 200 | 10 | inside the loop | 0.989 ms | 748552 | 1561504 | 50757632 |
+| 200 | 10 | before the loop | 0.962 ms | 748552 | 1561512 | 50675712 |
+| 1000 | 4 | inside the loop | 2.238 ms | 2831944 | 2123552 | 53608448 |
+| 1000 | 4 | before the loop | 2.177 ms | 2831944 | 2123560 | 53592064 |
+
+200-digit times, all five forks, milliseconds: inside 0.948, 1.010, 0.989, 1.229, 0.953. Before 0.948, 0.976, 0.995, 0.936, 0.962. The ranges overlap. About 2.7% on the median, one slow fork on the inside version. Not a win you can keep.
+
+1000-digit times, milliseconds: inside 2.306, 2.289, 2.238, 2.185, 2.223. Before 2.161, 2.190, 2.177, 2.176, 2.253. Same overlap.
+
+Heap after GC differs by 8 bytes. Process RSS differs by tens of kilobytes on a 50 MB process. The allocated-byte counter did not move by one byte.
+
+Logging on (JUL INFO, so each step still formats a sentence). 200 digits, 4 calls, 3 forks.
+
+| where declared | median time | bytes allocated |
+| --- | --- | --- |
+| inside the loop | 34.1 ms | 16712120, 16711984, 16712072 |
+| before the loop | 33.4 ms | 16712072, 16712072, 16712072 |
+
+Still the same ballpark. Logging, not the declaration line, is why this is about 35× slower and about 22× more bytes than the logging-off run of the same size.
+
+
 ## Recommendation
 
-Keep the rule only as a style rule, if you want one declaration site. It is not a CPU win and not a RAM win. For an `int`, allocation and RSS match. For a reference, hoisting can retain the last object until the method returns (measured: one extra `byte[1000000]`, 1000024 bytes after GC). Do not refactor `MyBigNumber` to satisfy the rule for speed or memory. If a loop is slow or fat, look at repeated `new` and at INFO logging of `Step.toString()`, not at where `firstDigit` is written.
+Keep the rule only as a style rule, if you want one declaration site. It is not a CPU win and not a RAM win. The stored pair in `bench/loop-local` is the check: same algorithm, declaration site only, allocated bytes identical on every fork. For a reference, hoisting can retain the last object until the method returns (measured on a separate bench: one extra `byte[1000000]`, 1000024 bytes after GC). Do not refactor `MyBigNumber` to satisfy the rule for speed or memory. If a loop is slow or fat, look at repeated `new` and at INFO logging of `Step.toString()`, not at where `firstDigit` is written.
