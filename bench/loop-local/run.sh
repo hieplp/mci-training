@@ -35,10 +35,14 @@ javac -cp "$OUT/lib" -d "$OUT/hoist-only" "$ROOT/bench/loop-local/hoist-only/MyB
 javac -cp "$OUT/lib" -d "$OUT/updated" "$ROOT/bench/loop-local/updated/MyBigNumber.java"
 javac -cp "$OUT/lib:$OUT/old" -d "$OUT/bench" "$ROOT/bench/loop-local/HoistBench.java"
 
+DIGITS=999999
+WARMUP_CALLS=50
+CALLS=100
+
 echo "===== same sum? ====="
-old_sum=$(java -cp "$OUT/old:$OUT/lib:$OUT/bench" HoistBench check 999 1 off)
-hoist_sum=$(java -cp "$OUT/hoist-only:$OUT/lib:$OUT/bench" HoistBench check 999 1 off)
-updated_sum=$(java -cp "$OUT/updated:$OUT/lib:$OUT/bench" HoistBench check 999 1 off)
+old_sum=$(java -cp "$OUT/old:$OUT/lib:$OUT/bench" HoistBench check "$DIGITS" 1 off)
+hoist_sum=$(java -cp "$OUT/hoist-only:$OUT/lib:$OUT/bench" HoistBench check "$DIGITS" 1 off)
+updated_sum=$(java -cp "$OUT/updated:$OUT/lib:$OUT/bench" HoistBench check "$DIGITS" 1 off)
 echo "old $old_sum"
 echo "hoist-only $hoist_sum"
 echo "updated $updated_sum"
@@ -49,23 +53,24 @@ fi
 
 # Warm up the JIT once per variant so the timed runs are steady-state.
 for variant in old hoist-only updated; do
-  java -cp "$OUT/$variant:$OUT/lib:$OUT/bench" -XX:+UseParallelGC -Xms256m -Xmx512m \
-    HoistBench steps 999 3000 off > /dev/null
+  java -cp "$OUT/$variant:$OUT/lib:$OUT/bench" -XX:+UseParallelGC -Xms256m -Xmx1g \
+    HoistBench steps "$DIGITS" "$WARMUP_CALLS" off > /dev/null
 done
 
-echo "Running. 999-digit operands, 1,000 steps per call, logging off."
+echo "Running. $DIGITS-digit operands, logging off."
 for variant in old hoist-only updated; do
   for fork in 1 2 3 4 5; do
-    java -cp "$OUT/$variant:$OUT/lib:$OUT/bench" -XX:+UseParallelGC -Xms256m -Xmx512m \
-      HoistBench steps 999 2000 off > "$OUT/$variant.$fork.txt"
+    java -cp "$OUT/$variant:$OUT/lib:$OUT/bench" -XX:+UseParallelGC -Xms256m -Xmx1g \
+      HoistBench steps "$DIGITS" "$CALLS" off > "$OUT/$variant.$fork.txt"
   done
 done
 
-python3 - "$OUT" << 'PY'
+python3 - "$OUT" "$CALLS" << 'PY'
 import re, statistics, sys
 from pathlib import Path
 
 out = Path(sys.argv[1])
+calls = int(sys.argv[2])
 order = [("old", "old"), ("hoist-only", "only move the variables"), ("updated", "updated")]
 
 def load(key):
@@ -98,19 +103,19 @@ def ratio_note(key, field):
 
 label_width = max(len(label) for _, label in order)
 print()
-print("Compare. Lower is better. Median of 5 forks, 2000 calls each.")
+print(f"Compare. Lower is better. Median of 5 forks, {calls} calls each.")
 print()
 print("Time per call")
 for key, label in order:
-    us = med(key, "ns") / 2000 / 1000
+    us = med(key, "ns") / calls / 1000
     print(f"  {label:<{label_width}}  {us:8.1f} us   {ratio_note(key, 'ns')}")
 print()
 print("Bytes allocated per call")
 for key, label in order:
-    b = med(key, "alloc") / 2000
+    b = med(key, "alloc") / calls
     print(f"  {label:<{label_width}}  {b:12,.0f} B   {ratio_note(key, 'alloc')}")
 print()
-print("GC count (2000 calls)")
+print(f"GC count ({calls} calls)")
 for key, label in order:
     print(f"  {label:<{label_width}}  {med(key, 'gc'):8.0f}   {ratio_note(key, 'gc')}")
 print()

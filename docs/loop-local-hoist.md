@@ -205,22 +205,23 @@ At 200 digits and 5 calls, INFO logging allocated 21057232 bytes and took 42.4 m
 
 Rerun: `./bench/loop-local/run.sh`
 
-That script uses the hand-rolled `HoistBench`, not JMH. JDK 21, ParallelGC, `-Xms256m -Xmx512m`, logging off. 999-digit operands, so `sumWithSteps` records 1,000 steps per call. 5 forks, 2,000 calls each, medians. The copy on the classpath selects old, hoist-only, or updated.
+That script uses the hand-rolled `HoistBench`, not JMH. JDK 21, ParallelGC, `-Xms256m -Xmx1g`, logging off. 999,999-digit operands, so `sumWithSteps` records 1,000,000 steps per call. 5 forks, 100 calls each, medians. The copy on the classpath selects old, hoist-only, or updated. A full run takes about 10 minutes.
 
 JMH was tried and removed. It runs the benchmark at max sustained rate, and `sumWithSteps` allocates ~1.15 MB per call, so each step list is mid-construction when a young GC fires and promotes to Old faster than the concurrent mark reclaims it. That overflows the heap at any size. `HoistBench`'s loop throttles allocation enough to run cleanly and reports `ns`, `alloc_bytes`, `gc_count`, and `heap_after_gc` directly.
 
-The `resultSoFar` snapshot is removed from all three copies. It was a full string copy per column — O(n²) memory and the dominant cost — and it hid the declaration-position effect. Without it the three copies do the same work.
+The `resultSoFar` snapshot is removed from all three copies. It was a full string copy per column — O(n²) memory and the dominant cost — and it hid the declaration-position effect. Without it the three copies do the same work, and 1,000,000 digits fits in the heap.
 
 | | old | only move the variables | updated |
 | --- | --- | --- | --- |
-| Time per call | 25.1 µs | 26.9 µs | 22.3 µs |
-| Bytes allocated per call | 75,106 | 74,950 | 73,617 |
-| GC count (2,000 calls) | 2 | 2 | 2 |
-| Heap after GC | 2,725,608 | 2,725,632 | 2,725,552 |
+| Time per call | 17,834 µs | 17,306 µs | 15,376 µs |
+| Bytes allocated per call | 65,004,785 | 64,832,015 | 65,829,534 |
+| GC count (100 calls) | 46 | 47 | 47 |
+| Heap after GC | 53,590,704 | 53,608,064 | 53,579,968 |
 
-Moving the declarations does not allocate less and is not faster. 26.9 vs 25.1 µs and 74,950 vs 75,106 B are within noise.
+Moving the declarations does not allocate less and is not faster. 17,306 vs 17,834 µs and 64.8 vs 65.0 MB are within noise.
 
-`updated` is about 1.1× faster (25.1 / 22.3) and allocates about 2% less. That is the `char[]` write, not the declaration line — and it is a much smaller effect than the `resultSoFar` snapshot it replaced.
+`updated` is about 1.16× faster (17,834 / 15,376) and allocates about the same. That is the `char[]` write, not the declaration line. Its `char[]` uses 2 bytes per digit where `StringBuilder` uses 1 (Latin-1), so it allocates slightly more — but both are dwarfed by the ~50 MB of `Step` objects.
+
 
 
 
