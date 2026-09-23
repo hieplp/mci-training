@@ -67,8 +67,8 @@ public class MyBigNumber {
             carry = columnTotal / 10;
             result.append(resultDigit);
 
-            String resultSoFar = new StringBuilder(result).reverse().toString();
-            Step step = new Step(++stepIndex, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carry, resultSoFar);
+            // resultSoFar snapshot removed: O(n^2) memory, dominates the bench.
+            Step step = new Step(++stepIndex, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carry);
             LOG.info("{0}", step);
             steps.add(step);
         }
@@ -100,7 +100,6 @@ public class MyBigNumber {
      * @param columnTotal {@code firstDigit + secondDigit + carryIn}
      * @param resultDigit digit written to the result ({@code columnTotal % 10})
      * @param carryOut    carry passed to the next step ({@code columnTotal / 10})
-     * @param resultSoFar result digits written so far, most-significant first
      */
     public record Step(
             int index,
@@ -109,16 +108,15 @@ public class MyBigNumber {
             int carryIn,
             int columnTotal,
             int resultDigit,
-            int carryOut,
-            String resultSoFar
+            int carryOut
     ) {
 
         /** The step rendered as a sentence — same text as the INFO log line. */
         @Override
         public String toString() {
             return MessageFormat.format(
-                    "Step {0}: {1} + {2} + carry {3} = {4}. Write {5}, carry {6}. Result so far: \"{7}\"",
-                    index, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carryOut, resultSoFar
+                    "Step {0}: {1} + {2} + carry {3} = {4}. Write {5}, carry {6}.",
+                    index, firstDigit, secondDigit, carryIn, columnTotal, resultDigit, carryOut
             );
         }
 

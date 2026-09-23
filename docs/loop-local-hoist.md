@@ -209,16 +209,19 @@ That script uses the hand-rolled `HoistBench`, not JMH. JDK 21, ParallelGC, `-Xm
 
 JMH was tried and removed. It runs the benchmark at max sustained rate, and `sumWithSteps` allocates ~1.15 MB per call, so each step list is mid-construction when a young GC fires and promotes to Old faster than the concurrent mark reclaims it. That overflows the heap at any size. `HoistBench`'s loop throttles allocation enough to run cleanly and reports `ns`, `alloc_bytes`, `gc_count`, and `heap_after_gc` directly.
 
+The `resultSoFar` snapshot is removed from all three copies. It was a full string copy per column — O(n²) memory and the dominant cost — and it hid the declaration-position effect. Without it the three copies do the same work.
+
 | | old | only move the variables | updated |
 | --- | --- | --- | --- |
-| Time per call | 126.5 µs | 127.8 µs | 38.6 µs |
-| Bytes allocated per call | 1,182,572 | 1,182,584 | 623,452 |
-| GC count (2,000 calls) | 15 | 16 | 9 |
-| Heap after GC | 5,432,096 | 5,435,680 | 5,416,176 |
+| Time per call | 25.1 µs | 26.9 µs | 22.3 µs |
+| Bytes allocated per call | 75,106 | 74,950 | 73,617 |
+| GC count (2,000 calls) | 2 | 2 | 2 |
+| Heap after GC | 2,725,608 | 2,725,632 | 2,725,552 |
 
-Moving the declarations does not allocate less. The two byte counts match to a fraction of a byte. It is also not faster: 127.8 vs 126.5 µs is within noise.
+Moving the declarations does not allocate less and is not faster. 26.9 vs 25.1 µs and 74,950 vs 75,106 B are within noise.
 
-`updated` is about 3.3× faster (126.5 / 38.6) and allocates about half as much (623 KB vs 1,183 KB per call). That is the `char[]` write, not the declaration line.
+`updated` is about 1.1× faster (25.1 / 22.3) and allocates about 2% less. That is the `char[]` write, not the declaration line — and it is a much smaller effect than the `resultSoFar` snapshot it replaced.
+
 
 
 
