@@ -37,8 +37,8 @@ public class AddBench {
         Logger.getLogger("dev.hieplp.mci.core").setLevel(java.util.logging.Level.OFF);
         Logger.getLogger("").setLevel(java.util.logging.Level.OFF);
         adder = new MyBigNumber();
-        left = "9".repeat(1000);
-        right = "1".repeat(1000);
+        left = "9".repeat(999);
+        right = "1".repeat(999);
     }
 
     @Benchmark

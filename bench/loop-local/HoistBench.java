@@ -28,7 +28,7 @@ public final class HoistBench {
 
         if ("check".equals(mode)) {
             var steps = adder.sumWithSteps(a, b);
-            System.out.println("sum=" + steps.sum() + " steps=" + steps.steps().size());
+            System.out.println("sum_len=" + steps.sum().length() + " steps=" + steps.steps().size());
             return;
         }
         if ("ram".equals(mode)) {

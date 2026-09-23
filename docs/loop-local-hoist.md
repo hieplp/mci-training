@@ -205,18 +205,18 @@ At 200 digits and 5 calls, INFO logging allocated 21057232 bytes and took 42.4 m
 
 Rerun: `./bench/loop-local/run.sh`
 
-That script uses JMH 1.37 and its `gc` profiler. It does not use a hand-rolled timer. JDK 21. Logging off. 1,000-digit `sumWithSteps`. 3 forks, 2 × 1 s warmup, 3 × 1 s measurement. The copy on the classpath selects old, hoist-only, or updated.
+That script uses JMH 1.37 and its `gc` profiler. It does not use a hand-rolled timer. JDK 21. Logging off. 999-digit operands, so `sumWithSteps` records 1,000 steps per call. 3 forks, 2 × 1 s warmup, 3 × 1 s measurement. The copy on the classpath selects old, hoist-only, or updated.
 
 JMH average time and bytes allocated per call (`gc.alloc.rate.norm`). ± is the 99.9% confidence interval.
 
 | | old | only move the variables | updated |
 | --- | --- | --- | --- |
-| Time | 113.699 ± 1.241 µs/op | 118.197 ± 3.080 µs/op | 24.022 ± 0.543 µs/op |
-| Bytes allocated per call | 1,155,328.787 ± 0.010 | 1,155,328.817 ± 0.022 | 619,288.167 ± 0.004 |
+| Time | 120.027 ± 3.000 µs/op | 122.044 ± 1.238 µs/op | 24.579 ± 0.590 µs/op |
+| Bytes allocated per call | 1,153,160.831 ± 0.010 | 1,153,160.844 ± 0.022 | 618,160.171 ± 0.004 |
 
-Moving the declarations does not allocate less. The two byte counts match to a fraction of a byte. It is also not faster: the confidence intervals do not overlap, and the moved-declarations copy is about 4% slower in this run.
+Moving the declarations does not allocate less. The two byte counts match to a fraction of a byte. It is also not faster: the confidence intervals overlap, so the time is the same.
 
-`updated` is about 4.7× faster (113.7 / 24.0) and allocates about half as much (619 KB vs 1,156 KB per call). That is the `char[]` write, not the declaration line.
+`updated` is about 4.9× faster (120.0 / 24.6) and allocates about half as much (618 KB vs 1,153 KB per call). That is the `char[]` write, not the declaration line.
 
 The hand-rolled table below is an earlier check. Do not use it. The JMH numbers above are the ones to cite.
 
@@ -226,7 +226,7 @@ The hand-rolled table below is an earlier check. Do not use it. The JMH numbers 
 | File | `bench/loop-local/old` | `bench/loop-local/hoist-only` | `bench/loop-local/updated` |
 | What | This repo's `MyBigNumber`. `StringBuilder` snapshots. Step locals declared inside the `while`. | That same method. Only `firstDigit`, `secondDigit`, `carryIn`, `columnTotal`, `resultDigit`, `resultSoFar`, and `step` move above the `while`. | `char[]` result, digit checks inside the loop, locals declared before the loop. |
 
-`i` and `j` stay outside in all three. They are the loop indexes. All three agreed on 40 nines plus 40 ones: sum `11111111111111111111111111111111111111110`, 41 steps.
+`i` and `j` stay outside in all three. They are the loop indexes. All three agreed on 999 nines plus 999 ones: sum `111…1110` (999 ones then a zero), 1,000 steps.
 
 1,000 digits, 800 calls, 5 forks. Medians.
 

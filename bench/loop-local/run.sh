@@ -44,9 +44,9 @@ javac -cp "$OUT/lib:$OUT/old:$JMH_CP" -processorpath "$PROC:$JMH_CP" \
   -d "$OUT/bench" "$ROOT/bench/loop-local/AddBench.java"
 
 echo "===== same sum? ====="
-old_sum=$(java -cp "$OUT/old:$OUT/lib:$OUT/bench" HoistBench check 40 1 off)
-hoist_sum=$(java -cp "$OUT/hoist-only:$OUT/lib:$OUT/bench" HoistBench check 40 1 off)
-updated_sum=$(java -cp "$OUT/updated:$OUT/lib:$OUT/bench" HoistBench check 40 1 off)
+old_sum=$(java -cp "$OUT/old:$OUT/lib:$OUT/bench" HoistBench check 999 1 off)
+hoist_sum=$(java -cp "$OUT/hoist-only:$OUT/lib:$OUT/bench" HoistBench check 999 1 off)
+updated_sum=$(java -cp "$OUT/updated:$OUT/lib:$OUT/bench" HoistBench check 999 1 off)
 echo "old $old_sum"
 echo "hoist-only $hoist_sum"
 echo "updated $updated_sum"
@@ -119,7 +119,7 @@ def bytes_note(key):
 label_width = max(len(label) for _, label in order)
 print()
 print("Compare. Lower is better.")
-print("1,000-digit sumWithSteps, logging off. JMH 1.37, 3 forks.")
+print("999-digit operands, 1,000 steps per call. Logging off. JMH 1.37, 3 forks.")
 print()
 print("Time")
 unit = data["old"]["time_unit"]
