@@ -205,20 +205,21 @@ At 200 digits and 5 calls, INFO logging allocated 21057232 bytes and took 42.4 m
 
 Rerun: `./bench/loop-local/run.sh`
 
-That script uses JMH 1.37 and its `gc` profiler. It does not use a hand-rolled timer. JDK 21. Logging off. 999-digit operands, so `sumWithSteps` records 1,000 steps per call. 3 forks, 2 × 1 s warmup, 3 × 1 s measurement. The copy on the classpath selects old, hoist-only, or updated.
+That script uses the hand-rolled `HoistBench`, not JMH. JDK 21, ParallelGC, `-Xms256m -Xmx512m`, logging off. 999-digit operands, so `sumWithSteps` records 1,000 steps per call. 5 forks, 2,000 calls each, medians. The copy on the classpath selects old, hoist-only, or updated.
 
-JMH average time and bytes allocated per call (`gc.alloc.rate.norm`). ± is the 99.9% confidence interval.
+JMH was tried and removed. It runs the benchmark at max sustained rate, and `sumWithSteps` allocates ~1.15 MB per call, so each step list is mid-construction when a young GC fires and promotes to Old faster than the concurrent mark reclaims it. That overflows the heap at any size. `HoistBench`'s loop throttles allocation enough to run cleanly and reports `ns`, `alloc_bytes`, `gc_count`, and `heap_after_gc` directly.
 
 | | old | only move the variables | updated |
 | --- | --- | --- | --- |
-| Time | 120.027 ± 3.000 µs/op | 122.044 ± 1.238 µs/op | 24.579 ± 0.590 µs/op |
-| Bytes allocated per call | 1,153,160.831 ± 0.010 | 1,153,160.844 ± 0.022 | 618,160.171 ± 0.004 |
+| Time per call | 126.5 µs | 127.8 µs | 38.6 µs |
+| Bytes allocated per call | 1,182,572 | 1,182,584 | 623,452 |
+| GC count (2,000 calls) | 15 | 16 | 9 |
+| Heap after GC | 5,432,096 | 5,435,680 | 5,416,176 |
 
-Moving the declarations does not allocate less. The two byte counts match to a fraction of a byte. It is also not faster: the confidence intervals overlap, so the time is the same.
+Moving the declarations does not allocate less. The two byte counts match to a fraction of a byte. It is also not faster: 127.8 vs 126.5 µs is within noise.
 
-`updated` is about 4.9× faster (120.0 / 24.6) and allocates about half as much (618 KB vs 1,153 KB per call). That is the `char[]` write, not the declaration line.
+`updated` is about 3.3× faster (126.5 / 38.6) and allocates about half as much (623 KB vs 1,183 KB per call). That is the `char[]` write, not the declaration line.
 
-The hand-rolled table below is an earlier check. Do not use it. The JMH numbers above are the ones to cite.
 
 
 | | old | only move the variables | updated |

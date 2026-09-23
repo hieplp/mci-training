@@ -1,8 +1,15 @@
 #!/bin/sh
-# JMH 1.37 plus its gc profiler. Three copies, one classpath each.
+# Three copies of MyBigNumber, one classpath each.
 #   old         this repo's MyBigNumber
 #   hoist-only  same method, while-body locals declared before the loop
 #   updated     char[] result, locals declared before the loop
+#
+# Uses the hand-rolled HoistBench, not JMH. JMH runs the benchmark at max
+# sustained rate; sumWithSteps allocates ~1.15 MB/call, so each step list is
+# mid-construction when a young GC fires and promotes to Old faster than the
+# concurrent mark reclaims it. That OOMs at any heap size. HoistBench's loop
+# throttles allocation enough to run cleanly and reports ns, alloc_bytes,
+# gc_count, and heap_after_gc directly.
 set -eu
 cd "$(dirname "$0")/../.."
 ROOT=$(pwd)
@@ -19,29 +26,14 @@ export PATH="$JDK/bin:$PATH"
 
 SRC="$ROOT/mci-core/src/main/java/dev/hieplp/mci/core"
 OUT="$ROOT/bench/loop-local/out"
-JMH="$OUT/jmh"
 rm -rf "$OUT"
-mkdir -p "$OUT/lib" "$OUT/old" "$OUT/hoist-only" "$OUT/updated" "$OUT/bench" "$JMH"
-
-fetch() {
-  name=$1
-  url=$2
-  curl -fsSL -o "$JMH/$name" "$url"
-}
-fetch jmh-core-1.37.jar https://repo1.maven.org/maven2/org/openjdk/jmh/jmh-core/1.37/jmh-core-1.37.jar
-fetch jmh-generator-annprocess-1.37.jar https://repo1.maven.org/maven2/org/openjdk/jmh/jmh-generator-annprocess/1.37/jmh-generator-annprocess-1.37.jar
-fetch jopt-simple-5.0.4.jar https://repo1.maven.org/maven2/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar
-fetch commons-math3-3.6.1.jar https://repo1.maven.org/maven2/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar
-JMH_CP="$JMH/jmh-core-1.37.jar:$JMH/jopt-simple-5.0.4.jar:$JMH/commons-math3-3.6.1.jar"
-PROC="$JMH/jmh-generator-annprocess-1.37.jar"
+mkdir -p "$OUT/lib" "$OUT/old" "$OUT/hoist-only" "$OUT/updated" "$OUT/bench"
 
 javac -d "$OUT/lib" "$SRC/AppLogger.java" "$SRC/NumberStrings.java"
 javac -cp "$OUT/lib" -d "$OUT/old" "$ROOT/bench/loop-local/old/MyBigNumber.java"
 javac -cp "$OUT/lib" -d "$OUT/hoist-only" "$ROOT/bench/loop-local/hoist-only/MyBigNumber.java"
 javac -cp "$OUT/lib" -d "$OUT/updated" "$ROOT/bench/loop-local/updated/MyBigNumber.java"
 javac -cp "$OUT/lib:$OUT/old" -d "$OUT/bench" "$ROOT/bench/loop-local/HoistBench.java"
-javac -cp "$OUT/lib:$OUT/old:$JMH_CP" -processorpath "$PROC:$JMH_CP" \
-  -d "$OUT/bench" "$ROOT/bench/loop-local/AddBench.java"
 
 echo "===== same sum? ====="
 old_sum=$(java -cp "$OUT/old:$OUT/lib:$OUT/bench" HoistBench check 999 1 off)
@@ -55,86 +47,76 @@ if [ "$old_sum" != "$hoist_sum" ] || [ "$old_sum" != "$updated_sum" ]; then
   exit 1
 fi
 
-echo "Running JMH. Full logs stay in bench/loop-local/out."
+# Warm up the JIT once per variant so the timed runs are steady-state.
 for variant in old hoist-only updated; do
-  echo "  $variant"
-  java -cp "$OUT/$variant:$OUT/lib:$OUT/bench:$JMH_CP" org.openjdk.jmh.Main \
-    -prof gc -rf json -rff "$OUT/$variant.json" > "$OUT/$variant.log" 2>&1
+  java -cp "$OUT/$variant:$OUT/lib:$OUT/bench" -XX:+UseParallelGC -Xms256m -Xmx512m \
+    HoistBench steps 999 3000 off > /dev/null
+done
+
+echo "Running. 999-digit operands, 1,000 steps per call, logging off."
+for variant in old hoist-only updated; do
+  for fork in 1 2 3 4 5; do
+    java -cp "$OUT/$variant:$OUT/lib:$OUT/bench" -XX:+UseParallelGC -Xms256m -Xmx512m \
+      HoistBench steps 999 2000 off > "$OUT/$variant.$fork.txt"
+  done
 done
 
 python3 - "$OUT" << 'PY'
-import json, sys
+import re, statistics, sys
 from pathlib import Path
 
 out = Path(sys.argv[1])
-order = [
-    ("old", "old"),
-    ("hoist-only", "only move the variables"),
-    ("updated", "updated"),
-]
+order = [("old", "old"), ("hoist-only", "only move the variables"), ("updated", "updated")]
 
-def load(name):
-    rows = json.loads((out / f"{name}.json").read_text())
-    row = rows[0]
-    primary = row["primaryMetric"]
-    alloc = next(v for k, v in row["secondaryMetrics"].items() if k.endswith("alloc.rate.norm"))
-    return {
-        "time": primary["score"],
-        "time_err": primary["scoreError"],
-        "time_ci": primary["scoreConfidence"],
-        "time_unit": primary["scoreUnit"],
-        "bytes": alloc["score"],
-        "bytes_err": alloc["scoreError"],
-        "bytes_ci": alloc["scoreConfidence"],
-    }
+def load(key):
+    rows = []
+    for f in range(1, 6):
+        m = dict(re.findall(r"(\w+)=([0-9]+)", (out / f"{key}.{f}.txt").read_text()))
+        rows.append({
+            "ns": int(m["ns"]),
+            "alloc": int(m["alloc_bytes"]),
+            "gc": int(m["gc_count"]),
+            "heap": int(m["heap_after_gc"]),
+        })
+    return rows
 
 data = {key: load(key) for key, _ in order}
 base = data["old"]
 
-def overlaps(a, b):
-    return not (a[1] < b[0] or b[1] < a[0])
+def med(key, field):
+    return statistics.median(r[field] for r in data[key])
 
-def time_note(key):
+def ratio_note(key, field):
     if key == "old":
         return ""
-    item = data[key]
-    if overlaps(base["time_ci"], item["time_ci"]):
-        return "same"
-    ratio = base["time"] / item["time"]
-    if item["time"] < base["time"]:
-        return f"{ratio:.1f}x faster"
-    return f"{item['time'] / base['time']:.2f}x slower"
-
-def bytes_note(key):
-    if key == "old":
-        return ""
-    item = data[key]
-    if abs(item["bytes"] - base["bytes"]) < 1 or overlaps(base["bytes_ci"], item["bytes_ci"]):
-        return "same"
-    ratio = base["bytes"] / item["bytes"]
-    if item["bytes"] < base["bytes"]:
-        return f"{ratio:.1f}x less"
-    return f"{item['bytes'] / base['bytes']:.2f}x more"
+    b, v = med("old", field), med(key, field)
+    if v < b:
+        return f"{b / v:.1f}x less"
+    if v > b:
+        return f"{v / b:.2f}x more"
+    return "same"
 
 label_width = max(len(label) for _, label in order)
 print()
-print("Compare. Lower is better.")
-print("999-digit operands, 1,000 steps per call. Logging off. JMH 1.37, 3 forks.")
+print("Compare. Lower is better. Median of 5 forks, 2000 calls each.")
 print()
-print("Time")
-unit = data["old"]["time_unit"]
+print("Time per call")
 for key, label in order:
-    item = data[key]
-    cell = f"{item['time']:8.3f} ± {item['time_err']:6.3f} {unit}"
-    note = time_note(key)
-    print(f"  {label:<{label_width}}  {cell}   {note}")
+    us = med(key, "ns") / 2000 / 1000
+    print(f"  {label:<{label_width}}  {us:8.1f} us   {ratio_note(key, 'ns')}")
 print()
 print("Bytes allocated per call")
 for key, label in order:
-    item = data[key]
-    cell = f"{item['bytes']:12,.3f} B"
-    note = bytes_note(key)
-    print(f"  {label:<{label_width}}  {cell}   {note}")
+    b = med(key, "alloc") / 2000
+    print(f"  {label:<{label_width}}  {b:12,.0f} B   {ratio_note(key, 'alloc')}")
 print()
-print("Full JMH logs: bench/loop-local/out/<name>.log")
+print("GC count (2000 calls)")
+for key, label in order:
+    print(f"  {label:<{label_width}}  {med(key, 'gc'):8.0f}   {ratio_note(key, 'gc')}")
+print()
+print("Heap after GC")
+for key, label in order:
+    print(f"  {label:<{label_width}}  {med(key, 'heap'):12,.0f} B   {ratio_note(key, 'heap')}")
+print()
+print("Raw per-fork output: bench/loop-local/out/<name>.<fork>.txt")
 PY

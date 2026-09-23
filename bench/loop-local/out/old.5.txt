@@ -1,0 +1,1 @@
+mode=steps digits=999 calls=2000 log=off ns=262109292 alloc_bytes=2365143656 gc_count=15 gc_ms=3 heap_after_gc=5432096 acc=4000000 kept=SumResult
