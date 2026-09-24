@@ -15,7 +15,7 @@
         </header>
 
         <div class="layout">
-            <form method="get" th:action="@{/}" class="calc-form">
+            <form method="post" th:action="@{/}" class="calc-form" id="sum-form">
                 <div class="field">
                     <label for="stn1">First number</label>
                     <input id="stn1" name="stn1" type="text" inputmode="numeric" required
@@ -30,31 +30,29 @@
             </form>
 
             <section class="output" aria-live="polite">
-                <div th:if="${sum == null and error == null}" class="output-empty">
+                <div th:if="${sum == null and error == null}" class="output-empty" id="empty-state">
                     Enter two numbers to see the column addition.
                 </div>
 
-                <div th:if="${sum != null}" class="panel panel-result">
+                <div class="panel panel-result" id="result-panel" th:attr="hidden=${sum == null} ? '' : null">
                     <p class="panel-label">Result</p>
-                    <p class="panel-value" th:text="${sum}"></p>
+                    <p class="panel-value" id="result-value" th:text="${sum}"></p>
                 </div>
 
-                <div th:if="${sum != null}" class="panel">
+                <div class="panel" id="steps-panel" hidden>
                     <p class="panel-label">Calculation progress</p>
-                    <ol class="steps-list">
-                        <li th:each="s, iter : ${steps}" th:style="'--i: ' + ${iter.index}"
-                            th:text="|${s.firstDigit} + ${s.secondDigit} + carry ${s.carryIn} = ${s.columnTotal}. Write ${s.resultDigit}, carry ${s.carryOut}. Result so far: ${sum.substring(sum.length() - s.index)}|"></li>
-                    </ol>
+                    <ol class="steps-list" id="steps-list"></ol>
                 </div>
 
-                <div th:if="${error != null}" class="panel panel-error">
+                <div class="panel panel-error" id="error-panel" th:attr="hidden=${error == null} ? '' : null">
                     <p class="panel-label">Invalid input</p>
-                    <p class="panel-value" th:text="${error}"></p>
+                    <p class="panel-value" id="error-value" th:text="${error}"></p>
                 </div>
             </section>
         </div>
 
         <footer class="foot">mci-training · v0.0.1</footer>
+        <script th:src="@{/js/sum.js}" defer></script>
     </main>
 </body>
 </html>

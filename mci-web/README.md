@@ -9,13 +9,13 @@ in `settings.gradle`) — no published jar needed.
 | Class | Purpose |
 |---|---|
 | `MciWebApplication` | Spring Boot entry point. |
-| `SumController` | `GET /` — echoes the operands, adds the sum and the collected steps (or the validation error) to the model. |
+| `SumController` | `GET /` — echoes the operands, adds the sum (or the validation error) to the model. `GET /sum/stream` — SSE stream of `step`/`result`/`error` events. |
 | `SumService` / `SumServiceImpl` | Web-layer facade delegating to `MyBigNumber.sum(stn1, stn2, listener)`. |
 
 Package: `dev.hieplp.mci.web`
 
 UI: single `index.html` page (Thymeleaf) + hand-rolled `static/css/app.css`,
-showing the column-addition steps streamed by `mci-core`.
+showing the column-addition steps streamed live from `GET /sum/stream` via `static/js/sum.js`.
 
 ## Requirements
 
