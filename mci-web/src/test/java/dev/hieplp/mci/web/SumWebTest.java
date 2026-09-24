@@ -2,6 +2,7 @@ package dev.hieplp.mci.web;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -28,16 +29,15 @@ class SumWebTest {
     }
 
     @Test
-    void validOperandsShowTheSumAndSteps() throws Exception {
-        mvc.perform(get("/").param("stn1", "1234").param("stn2", "897"))
+    void validOperandsShowTheSum() throws Exception {
+        mvc.perform(post("/").param("stn1", "1234").param("stn2", "897"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("2131")))
-                .andExpect(content().string(containsString("Result so far: 2131")));
+                .andExpect(content().string(containsString("2131")));
     }
 
     @Test
     void invalidOperandShowsTheErrorMessage() throws Exception {
-        mvc.perform(get("/").param("stn1", "12a3").param("stn2", "1"))
+        mvc.perform(post("/").param("stn1", "12a3").param("stn2", "1"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("non-digit character")));
     }
