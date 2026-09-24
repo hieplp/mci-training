@@ -30,20 +30,20 @@
             </form>
 
             <section class="output" aria-live="polite">
-                <div th:if="${result == null and error == null}" class="output-empty">
+                <div th:if="${sum == null and error == null}" class="output-empty">
                     Enter two numbers to see the column addition.
                 </div>
 
-                <div th:if="${result != null}" class="panel panel-result">
+                <div th:if="${sum != null}" class="panel panel-result">
                     <p class="panel-label">Result</p>
-                    <p class="panel-value" th:text="${result.sum}"></p>
+                    <p class="panel-value" th:text="${sum}"></p>
                 </div>
 
-                <div th:if="${result != null}" class="panel">
+                <div th:if="${sum != null}" class="panel">
                     <p class="panel-label">Calculation progress</p>
                     <ol class="steps-list">
-                        <li th:each="s, iter : ${result.steps}" th:style="'--i: ' + ${iter.index}"
-                            th:text="|${s.firstDigit} + ${s.secondDigit} + carry ${s.carryIn} = ${s.columnTotal}. Write ${s.resultDigit}, carry ${s.carryOut}. Result so far: ${s.resultSoFar}|"></li>
+                        <li th:each="s, iter : ${steps}" th:style="'--i: ' + ${iter.index}"
+                            th:text="|${s.firstDigit} + ${s.secondDigit} + carry ${s.carryIn} = ${s.columnTotal}. Write ${s.resultDigit}, carry ${s.carryOut}. Result so far: ${sum.substring(sum.length() - s.index)}|"></li>
                     </ol>
                 </div>
 

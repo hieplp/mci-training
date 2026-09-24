@@ -72,15 +72,21 @@ class MyBigNumberTest {
     }
 
     @Test
-    void sumWithStepsReturnsOrderedStepData() {
-        MyBigNumber.SumResult r = bigNumber.sumWithSteps("1234", "897");
-        assertEquals("2131", r.sum());
+    void sumReportsOrderedStepsToTheListener() {
+        List<MyBigNumber.Step> steps = new ArrayList<>();
+        String sum = bigNumber.sum("1234", "897", steps::add);
+        assertEquals("2131", sum);
         assertEquals(List.of(
-                new MyBigNumber.Step(1, 4, 7, 0, 11, 1, 1, "1"),
-                new MyBigNumber.Step(2, 3, 9, 1, 13, 3, 1, "31"),
-                new MyBigNumber.Step(3, 2, 8, 1, 11, 1, 1, "131"),
-                new MyBigNumber.Step(4, 1, 0, 1, 2, 2, 0, "2131")),
-                r.steps());
+                new MyBigNumber.Step(1, 4, 7, 0, 11, 1, 1),
+                new MyBigNumber.Step(2, 3, 9, 1, 13, 3, 1),
+                new MyBigNumber.Step(3, 2, 8, 1, 11, 1, 1),
+                new MyBigNumber.Step(4, 1, 0, 1, 2, 2, 0)),
+                steps);
+    }
+
+    @Test
+    void sumWithNullListenerReturnsTheSum() {
+        assertEquals("3", bigNumber.sum("1", "2", null));
     }
 
     @Test
@@ -139,10 +145,10 @@ class MyBigNumberTest {
         // instead of printing them immediately must still see each step's own state.
         assertEquals(List.of(
                         "Input: stn1=\"1234\", stn2=\"897\"",
-                        "Step 1: 4 + 7 + carry 0 = 11. Write 1, carry 1. Result so far: \"1\"",
-                        "Step 2: 3 + 9 + carry 1 = 13. Write 3, carry 1. Result so far: \"31\"",
-                        "Step 3: 2 + 8 + carry 1 = 11. Write 1, carry 1. Result so far: \"131\"",
-                        "Step 4: 1 + 0 + carry 1 = 2. Write 2, carry 0. Result so far: \"2131\"",
+                        "Step 1: 4 + 7 + carry 0 = 11. Write 1, carry 1.",
+                        "Step 2: 3 + 9 + carry 1 = 13. Write 3, carry 1.",
+                        "Step 3: 2 + 8 + carry 1 = 11. Write 1, carry 1.",
+                        "Step 4: 1 + 0 + carry 1 = 2. Write 2, carry 0.",
                         "Final: 1234 + 897 = 2131"),
                 records.stream()
                         .map(r -> MessageFormat.format(r.getMessage(), r.getParameters()))

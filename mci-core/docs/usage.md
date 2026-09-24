@@ -18,16 +18,19 @@ bn.sum("0", "0");            // "0"
 ```
 
 Need the step-by-step history (e.g. to show calculation progress in a UI)?
-`sumWithSteps` returns the sum plus each column-addition step as
-structured data — formatting is the caller's choice:
+Pass a `StepListener` — each column-addition step is reported as it is
+computed, never stored; formatting is the caller's choice:
 
 ```java
-MyBigNumber.SumResult r = bn.sumWithSteps("1234", "897");
-r.sum();     // "2131"
-r.steps();   // [Step 1: 4 + 7 + carry 0 = 11. Write 1, carry 1. Result so far: "1", ...]
-             // each Step exposes its fields (index, firstDigit, carryIn, ...)
-             // and toString() renders the same sentence as the log line
+List<MyBigNumber.Step> steps = new ArrayList<>();
+String sum = bn.sum("1234", "897", steps::add);   // "2131"
+// steps: [Step 1: 4 + 7 + carry 0 = 11. Write 1, carry 1., ...]
+// each Step exposes its fields (index, firstDigit, carryIn, ...)
+// and toString() renders the same sentence as the log line
 ```
+
+The listener runs on the caller's thread before `sum` returns; pass
+`null` when no steps are needed.
 
 **Errors** — `IllegalArgumentException` when an operand is `null`, empty,
 or contains a non-digit character:
@@ -37,9 +40,9 @@ bn.sum("12a", "1");   // IllegalArgumentException: stn1 contains non-digit chara
 bn.sum(null, "1");    // IllegalArgumentException: stn1 must not be null or empty
 ```
 
-**Cost note:** each addition step logs an immutable snapshot of the partial
-result, so both time and log volume are O(n²) in input length. Raise the
-log level above INFO for large operands (see [logging.md](logging.md)).
+**Cost note:** each addition step is logged at INFO, so log volume is
+O(n) in input length. Raise the log level above INFO for large operands
+(see [logging.md](logging.md)).
 
 ## NumberStrings
 
