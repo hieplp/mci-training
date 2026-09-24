@@ -12,7 +12,7 @@ There is no sign, decimal point, or thousands separator.
 
 `MyBigNumber.sum` returns the sum as a digit string, most-significant digit first.
 
-`sumWithSteps` returns the same sum plus one step per column, from right to left:
+`sum(stn1, stn2, listener)` reports one `Step` per column, from right to left, streamed to the listener as it is computed — never collected or returned:
 
 | Field | Meaning |
 |---|---|
@@ -23,7 +23,6 @@ There is no sign, decimal point, or thousands separator.
 | `columnTotal` | `firstDigit + secondDigit + carryIn` |
 | `resultDigit` | Digit written (`columnTotal % 10`) |
 | `carryOut` | Carry passed on (`columnTotal / 10`) |
-| `resultSoFar` | Digits written so far, most-significant first |
 
 Example: `sum("1234", "897")` is `"2131"`.
 

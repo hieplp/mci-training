@@ -1,6 +1,6 @@
 # Step progress without storing steps
 
-Status: proposed. Replaces the step-history contract in [api-spec.md](api-spec.md), [domain-model.md](domain-model.md), and [coding-rules.md](coding-rules.md) §3 when accepted.
+Status: shipped in #19 (core `StepListener`) and #20 (SSE endpoint). As built, `/sum/stream` is `POST` via `StreamingResponseBody` and the page uses `fetch`, not `GET`/`SseEmitter`/`EventSource` as written below — operands moved to the request body to avoid the request-header size limit. Replaces the step-history contract in [api-spec.md](api-spec.md), [domain-model.md](domain-model.md), and [coding-rules.md](coding-rules.md) §3.
 
 ## Problem
 

@@ -20,15 +20,15 @@ Do not add a database, ORM, REST resource, message bus, or third module. Do not 
 
 `PascalCase` for classes, `camelCase` for methods and variables, `UPPER_SNAKE_CASE` for constants.
 
-- **GOOD:** `MyBigNumber`, `sumWithSteps`, `private static final AppLogger LOG`.
+- **GOOD:** `MyBigNumber`, `StepListener`, `private static final AppLogger LOG`.
 - **BAD:** `my_big_number`, `Sum_With_Steps`, `private static final AppLogger log`.
 
 ## 3. Public API
 
-Public API is `MyBigNumber.sum` and `sumWithSteps`. Do not change `sum(String, String)`. Do not drop the step history.
+Public API is `MyBigNumber.sum` and `sum(String, String, StepListener)`. Do not change `sum(String, String)`. Do not collect or store steps — they are streamed to the listener and logged at INFO; that stream is the step history.
 
-- **GOOD:** `public String sum(String stn1, String stn2)` still returns the sum, and `sumWithSteps` still returns the steps.
-- **BAD:** adding a third parameter, or deleting `SumResult`.
+- **GOOD:** `public String sum(String stn1, String stn2)` still returns the sum, and `sum(stn1, stn2, listener)` reports each step to the listener.
+- **BAD:** returning a list of steps, or adding a field to `Step` that accumulates the result.
 
 ## 4. Operands
 
@@ -74,9 +74,9 @@ while (hasMore) {
 
 ## 8. Web surface
 
-One page: `GET /` with `stn1` and `stn2`. `SumController` → `SumService` → `MyBigNumber`. CSS is `mci-web/src/main/resources/static/css/app.css`. Do not publish a jar to make the web module compile.
+One page: `GET /` renders the form, `POST /` computes the sum for no-JS clients, `POST /sum/stream` streams the steps as SSE. `SumController` → `SumService` → `MyBigNumber`. CSS is `mci-web/src/main/resources/static/css/app.css`. Do not publish a jar to make the web module compile.
 
-- **GOOD:** the form submits `stn1` and `stn2` to `GET /`.
+- **GOOD:** the form posts `stn1` and `stn2` to `POST /`.
 - **BAD:** a new `POST /api/workorders` mapping in `mci-web`.
 
 ## 9. Injection
@@ -97,7 +97,7 @@ public SumController(SumService sumService) {
 
 4-space indent. Opening brace on the same line. No wildcard imports. Records for results. JUnit 5.
 
-- **GOOD:** `public record SumResult(String sum, List<Step> steps) {}`
+- **GOOD:** `public record Step(int index, int firstDigit, int secondDigit, int carryIn, int columnTotal, int resultDigit, int carryOut) {}`
 - **BAD:** a result bean with setters, or `import java.util.*;` in main code.
 
 ## 11. Core purity

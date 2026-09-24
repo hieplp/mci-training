@@ -1,6 +1,6 @@
 # API rules
 
-This repository has no REST API. The spec is [api-spec.md](api-spec.md): library methods `sum` / `sumWithSteps`, and one page, `GET /`, with query fields `stn1` and `stn2` only.
+This repository has no REST API. The spec is [api-spec.md](api-spec.md): library methods `sum` / `sum(stn1, stn2, listener)`, and one page — `GET /` renders the form, `POST /` computes, `POST /sum/stream` streams steps — with fields `stn1` and `stn2` only.
 
 Do not add an endpoint, a JSON body, or a field the spec does not name. The page shows the `IllegalArgumentException` message. It does not return a JSON error document.
 
