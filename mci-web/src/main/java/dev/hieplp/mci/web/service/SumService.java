@@ -1,13 +1,14 @@
 package dev.hieplp.mci.web.service;
 
-import dev.hieplp.mci.core.MyBigNumber.SumResult;
+import dev.hieplp.mci.core.MyBigNumber.StepListener;
 
 /**
- * Big-number addition with step-by-step column history.
+ * Big-number addition with step-by-step column progress.
  *
  * <p>Web-layer facade over {@link dev.hieplp.mci.core.MyBigNumber}:
- * operands arrive as request parameters and the result is rendered by
- * the view.</p>
+ * operands arrive as request parameters, the sum is rendered by the
+ * view, and each column step is reported to {@code listener} as it is
+ * computed.</p>
  *
  * @author HiepLP (hiepphuocly@gmail.com)
  * @see dev.hieplp.mci.core.MyBigNumber
@@ -15,16 +16,15 @@ import dev.hieplp.mci.core.MyBigNumber.SumResult;
 public interface SumService {
 
     /**
-     * Adds two non-negative integers given as digit strings and returns
-     * the sum together with each column-addition step, so callers can
-     * render the calculation progress.
+     * Adds two non-negative integers given as digit strings.
      *
-     * @param stn1 first operand, ASCII digits only
-     * @param stn2 second operand, ASCII digits only
-     * @return sum of the two operands plus the ordered
-     *         step descriptions of the column addition
+     * @param stn1     first operand, ASCII digits only
+     * @param stn2     second operand, ASCII digits only
+     * @param listener receives each column-addition step, in order;
+     *                 may be {@code null}
+     * @return sum of the two operands, no leading zeros
      * @throws IllegalArgumentException on null, empty, or non-digit input
      */
-    SumResult sum(String stn1, String stn2);
+    String sum(String stn1, String stn2, StepListener listener);
 
 }
